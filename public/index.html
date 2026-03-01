@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendario Vacacional - Vinte Catro</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Export Libraries for Web -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body>
+  <div class="app-container">
+    <header>
+      <div class="header-left">
+        <h1>Vacaciones TEMBRA</h1>
+        <div class="controls">
+          <button id="prev-month">&lt;</button>
+          <h2 id="current-month">Cargando...</h2>
+          <button id="next-month">&gt;</button>
+
+          <div class="year-selector">
+            <select id="year-select"></select>
+          </div>
+          <button id="btn-logout" style="margin-left: 10px; background: #e74c3c; font-weight: bold;">Salir</button>
+        </div>
+      </div>
+      <div class="header-right">
+        <span
+          style="font-weight: bold; background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 4px;">Modo
+          Administrador</span>
+      </div>
+    </header>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-calendar">🗓️ Calendario Principal</button>
+      <button class="tab-btn" id="tab-employees">👤 Vista Empleados</button>
+    </div>
+
+    <main>
+      <!-- VISTA CALENDARIO -->
+      <div id="view-calendar" class="view active" style="display: flex; width: 100%; height: 100%;">
+        <div class="sidebar">
+          <h3>Departamentos</h3>
+          <div id="employee-list" class="employee-list"></div>
+          <div class="admin-panel" id="admin-panel">
+            <div class="admin-controls">
+              <label>Días extra asignados:</label>
+              <input type="number" id="extra-days-input" min="0" max="30" value="0">
+              <button id="grant-days-btn">Guardar</button>
+            </div>
+            <button id="manage-emp-btn" class="manage-emp-btn"
+              style="margin-top: 10px; width: 100%; border-radius: 4px; padding: 6px; font-family: 'Outfit'; background: #333; color: white; border: none; cursor: pointer;">Gestionar
+              Empleados</button>
+          </div>
+          <div class="selection-panel">
+            <div class="admin-mode-toggle">
+              <input type="checkbox" id="fixed-vacation-cb" class="toggle-checkbox">
+              <label for="fixed-vacation-cb" class="toggle-label">
+                <span class="toggle-text">⚙️ Asignar Vacaciones Fijas Generales</span>
+              </label>
+            </div>
+            <h3>Modo de Selección Personal</h3>
+            <div class="radio-group">
+              <label><input type="radio" name="selection-type" value="vacation" checked> Vacaciones</label>
+              <label><input type="radio" name="selection-type" value="personal"> Asuntos Propios</label>
+            </div>
+            <div class="stats" id="user-stats">
+              <!-- stats injected via JS -->
+            </div>
+          </div>
+        </div>
+
+        <div class="calendar-area">
+          <div class="calendar-header">
+            <div>Lunes</div>
+            <div>Martes</div>
+            <div>Miércoles</div>
+            <div>Jueves</div>
+            <div>Viernes</div>
+            <div>Sábado</div>
+            <div>Domingo</div>
+          </div>
+          <div id="calendar-grid" class="calendar-grid">
+            <!-- Days injected here -->
+          </div>
+        </div>
+      </div> <!-- End view-calendar -->
+
+      <!-- VISTA EMPLEADOS -->
+      <div id="view-employees" class="view" style="display: none; width: 100%; height: 100%; background: white;">
+        <div style="display: flex; width: 100%; height: 100%;">
+          <div class="emp-sidebar"
+            style="width: 300px; padding: 1.5rem; border-right: 1px solid var(--border-color); overflow-y: auto; background: var(--bg-color);">
+            <h3>Seleccionar Empleado</h3>
+            <div id="tab-emp-list" class="employee-list"></div>
+          </div>
+          <div class="emp-details" style="flex: 1; padding: 2rem; overflow-y: auto;">
+            <div id="emp-details-placeholder"
+              style="color: #999; font-size: 1.2rem; text-align: center; margin-top: 2rem;">Selecciona un empleado de la
+              lista</div>
+            <div id="emp-details-content" style="display: none;">
+              <h2 id="det-emp-name" style="margin-bottom: 0.5rem; color: var(--primary-color);"></h2>
+              <h4 id="det-emp-dept" style="color: #666; font-weight: 400; margin-bottom: 2rem;"></h4>
+
+              <div style="display: flex; gap: 2rem;">
+                <div style="flex: 1;">
+                  <h3
+                    style="margin-bottom: 1rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem; display: inline-block;">
+                    Días Seleccionados</h3>
+                  <div id="det-emp-stats" style="margin-bottom: 1rem; font-weight: bold;"></div>
+                  <ul id="det-emp-dates"
+                    style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px;">
+                    <!-- dates injected here -->
+                  </ul>
+                </div>
+                <div style="width: 300px;">
+                  <div class="selection-panel" style="background: var(--day-bg);">
+                    <h3 style="margin-bottom: 1rem; color: var(--secondary-color);">Exportar y Compartir</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                      <button id="export-pdf-btn"
+                        style="padding: 10px; border-radius: 4px; border: none; cursor: pointer; background: #e74c3c; color: white; font-family: 'Outfit'; font-size: 1rem;">📄
+                        Exportar a PDF</button>
+                      <button id="export-excel-btn"
+                        style="padding: 10px; border-radius: 4px; border: none; cursor: pointer; background: #27ae60; color: white; font-family: 'Outfit'; font-size: 1rem;">📊
+                        Exportar a Excel</button>
+                      <button id="share-wa-btn"
+                        style="padding: 10px; border-radius: 4px; border: none; cursor: pointer; background: #25D366; color: white; font-family: 'Outfit'; font-size: 1rem;">💬
+                        Compartir WhatsApp</button>
+                      <button id="share-email-btn"
+                        style="padding: 10px; border-radius: 4px; border: none; cursor: pointer; background: #3498db; color: white; font-family: 'Outfit'; font-size: 1rem;">✉️
+                        Enviar por Email</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div> <!-- End view-employees -->
+    </main>
+
+    <div class="mascots">
+      <img src="assets/muneco.jpg" class="mascot mascot-left" alt="Severino">
+      <img src="assets/muneca.jpg" class="mascot mascot-right" alt="Sefita">
+    </div>
+  </div>
+
+  <div id="custom-alert">
+    <div class="alert-box">
+      <div class="alert-message" id="custom-alert-msg"></div>
+      <button id="custom-alert-btn">Aceptar</button>
+    </div>
+  </div>
+
+  <div id="confirm-modal">
+    <div class="confirm-box">
+      <h3 id="confirm-modal-msg"></h3>
+      <div class="confirm-actions">
+        <button id="confirm-cancel">Cancelar</button>
+        <button id="confirm-accept">Sí, añadir día extra</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="emp-modal" class="modal"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+    <div class="modal-content"
+      style="background: white; padding: 2rem; border-radius: 8px; width: 500px; max-width: 90%; max-height: 90vh; overflow-y: auto;">
+      <span class="close-btn" id="emp-modal-close"
+        style="float: right; cursor: pointer; font-size: 1.5rem;">&times;</span>
+      <h2>Gestión de Empleados</h2>
+      <div class="emp-form"
+        style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #ccc;">
+        <input type="hidden" id="emp-id">
+        <input type="text" id="emp-name" placeholder="Nombre completo" style="padding: 8px;">
+        <input type="text" id="emp-nickname" placeholder="Apodo o alias (Opcional)" style="padding: 8px;">
+        <input type="text" id="emp-dept" placeholder="Departamento (ej. Oficina, Almacén)" style="padding: 8px;">
+        <input type="text" id="emp-group" placeholder="Grupo (ej. Fijos, Ruta 1)" style="padding: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <label>Color representativo:</label>
+          <input type="color" id="emp-color" value="#000000">
+        </div>
+        <label style="display: flex; align-items: center; gap: 5px;">
+          <input type="checkbox" id="emp-hide"> Ocultar de la lista
+        </label>
+        <div style="display: flex; gap: 10px;">
+          <button id="emp-save-btn"
+            style="flex: 1; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-family: 'Outfit';">Guardar
+            Empleado</button>
+          <button id="emp-delete-btn"
+            style="flex: 1; padding: 10px; background: #F44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: 'Outfit'; display: none;">Eliminar
+            Empleado</button>
+        </div>
+        <button id="emp-new-btn"
+          style="padding: 8px; background: #e0e0e0; border: none; border-radius: 4px; cursor: pointer; font-family: 'Outfit'; margin-top: 8px;">Formulario
+          en Blanco Nuevo</button>
+      </div>
+      <div id="emp-list-manage" style="display: flex; flex-direction: column; gap: 5px;"></div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="storage.js"></script>
+  <script src="rules.js"></script>
+  <script src="calendar.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>

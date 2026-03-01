@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso - Calendario Vacacional</title>
+    <link rel="stylesheet" href="login.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo-area">
+                <img src="assets/color logo.jpg" alt="Logo TEMBRA" class="logo">
+                <h1>Vacaciones TEMBRA</h1>
+                <p>Acceso Seguro</p>
+            </div>
+
+            <form id="login-form">
+                <div class="input-group">
+                    <label for="username">Usuario</label>
+                    <input type="text" id="username" placeholder="Introduce tu usuario" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" placeholder="Introduce tu contraseña" required>
+                </div>
+
+                <div id="error-message" class="error-message"></div>
+
+                <button type="submit" class="login-btn">Entrar al Calendario</button>
+            </form>
+
+            <div class="help-text">
+                <p>Si es tu primera vez, usa la contraseña por defecto asignada por tu administrador.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="login.js"></script>
+</body>
+
+</html>

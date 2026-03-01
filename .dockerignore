@@ -1,0 +1,5 @@
+node_modules
+.git
+.env
+vacation_data.db
+vacation_data.json
