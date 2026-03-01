@@ -200,9 +200,15 @@ async function onDayClick(dateStr) {
             }
 
             const checkResult = canBookVacation(currentUserId, dateStr, Storage.data);
-            if (!checkResult.allowed && userRole !== 'admin') { // Admins can override rules if they want to physically click it, but web prevents employee overriding.
-                showCustomAlert(checkResult.reason);
-                return;
+            if (!checkResult.allowed) {
+                if (userRole === 'admin') {
+                    if (!window.confirm("Aviso Jefe: " + checkResult.reason + "\n\n¿Quieres sobreescribir esta regla y asignar el día de todos modos?")) {
+                        return;
+                    }
+                } else {
+                    showCustomAlert(checkResult.reason);
+                    return;
+                }
             }
 
             if (type === 'personal') {
@@ -245,7 +251,15 @@ document.getElementById('confirm-cancel').onclick = () => { confirmModal.style.d
 document.getElementById('confirm-accept').onclick = async () => {
     if (!pendingDateStr) return;
     const checkResult = canBookVacation(currentUserId, pendingDateStr, Storage.data);
-    if (!checkResult.allowed) { confirmModal.style.display = 'none'; showCustomAlert(checkResult.reason); pendingDateStr = null; pendingType = null; return; }
+    if (!checkResult.allowed) {
+        if (userRole === 'admin') {
+            if (!window.confirm("Aviso Jefe: " + checkResult.reason + "\n\n¿Quieres sobreescribir esta regla y asignar el día de todos modos?")) {
+                confirmModal.style.display = 'none'; pendingDateStr = null; pendingType = null; return;
+            }
+        } else {
+            confirmModal.style.display = 'none'; showCustomAlert(checkResult.reason); pendingDateStr = null; pendingType = null; return;
+        }
+    }
     if (!Storage.data.extraDays[currentUserId]) Storage.data.extraDays[currentUserId] = 0;
     Storage.data.extraDays[currentUserId] += 1;
     document.getElementById('extra-days-input').value = Storage.data.extraDays[currentUserId];
@@ -448,17 +462,16 @@ function selectEmpTab(id) {
 
         const ul = document.getElementById('det-emp-dates');
         ul.innerHTML = '';
-        const sorted = userVac.slice().sort((a, b) => a.date.localeCompare(b.date));
-        if (sorted.length === 0) {
+        const allData = getUserVacationsData(emp);
+        if (allData.length === 0) {
             ul.innerHTML = '<li style="color: #666;">Ningún día seleccionado</li>';
         } else {
-            sorted.forEach(v => {
-                const [y, m, d] = v.date.split('-');
+            allData.forEach(row => {
                 const li = document.createElement('li');
                 li.style.padding = '8px';
                 li.style.background = '#f9f9f9';
-                li.style.borderLeft = `4px solid ${emp.color}`;
-                li.textContent = `${d}/${m}/${y} - ${v.type === 'vacation' ? 'Vacaciones' : 'Asuntos Propios'}`;
+                li.style.borderLeft = `4px solid ${row.RawType === 'fixed' ? '#000000' : emp.color}`;
+                li.textContent = `${row.Fecha} - ${row.Tipo}`;
                 ul.appendChild(li);
             });
         }
@@ -466,13 +479,23 @@ function selectEmpTab(id) {
 }
 
 function getUserVacationsData(emp) {
-    const vacs = Storage.data.userVacations[emp.id] || [];
-    const sorted = vacs.slice().sort((a, b) => a.date.localeCompare(b.date));
+    const vacs = (Storage.data.userVacations[emp.id] || []).map(v => ({ date: v.date, type: v.type }));
+    const fixed = (Storage.data.fixedVacations || []).map(d => ({ date: d, type: 'fixed' }));
+
+    const allVacs = [...vacs, ...fixed];
+    const sorted = allVacs.sort((a, b) => a.date.localeCompare(b.date));
+
     return sorted.map(v => {
         const [y, m, d] = v.date.split('-');
+        let tipoStr = '';
+        if (v.type === 'vacation') tipoStr = 'Vacaciones';
+        else if (v.type === 'personal') tipoStr = 'Asuntos Propios';
+        else if (v.type === 'fixed') tipoStr = 'Fijadas Empresa';
+
         return {
             Fecha: `${d}/${m}/${y}`,
-            Tipo: v.type === 'vacation' ? 'Vacaciones' : 'Asuntos Propios'
+            Tipo: tipoStr,
+            RawType: v.type
         };
     });
 }
