@@ -1,5 +1,7 @@
 // Electron dependencies removed. Web context assumed.
 
+const DEFAULT_FLEXIBLE_DAYS = 14;
+
 function getEmpDisplayName(emp) {
     return emp.nickname ? `${emp.name} (${emp.nickname})` : emp.name;
 }
