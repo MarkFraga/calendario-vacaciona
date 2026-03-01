@@ -203,6 +203,12 @@ async function onDayClick(dateStr) {
                 return;
             }
 
+            if (type === 'personal') {
+                if (!window.confirm("Aviso: Vas a coger un día de 'Asuntos Propios'. ¿Estás seguro de continuar?")) {
+                    return;
+                }
+            }
+
             const success = await Storage.toggleVacation(currentUserId, dateStr, type, true);
             if (success) {
                 userVacList.push({ date: dateStr, type: type });
@@ -219,10 +225,18 @@ yearSelect.onchange = (e) => { currentYear = parseInt(e.target.value); updateUI(
 document.getElementById('grant-days-btn').onclick = async () => {
     const uid = currentUserId;
     const extra = parseInt(document.getElementById('extra-days-input').value) || 0;
-    Storage.data.extraDays[uid] = extra;
-    await Storage.save();
-    showCustomAlert(`Días extra actualizados para ${getEmpDisplayName(Storage.data.employees.find(e => e.id === uid))}`);
-    updateUI();
+
+    document.getElementById('grant-days-btn').disabled = true;
+    const success = await Storage.updateExtraDays(uid, extra);
+    document.getElementById('grant-days-btn').disabled = false;
+
+    if (success) {
+        Storage.data.extraDays[uid] = extra;
+        showCustomAlert(`Días extra guardados correctamente para ${getEmpDisplayName(Storage.data.employees.find(e => e.id === uid))}`);
+        updateUI();
+    } else {
+        showCustomAlert('Error al guardar los días extra en el servidor. Revisa tu conexión.');
+    }
 };
 
 document.getElementById('confirm-cancel').onclick = () => { confirmModal.style.display = 'none'; pendingDateStr = null; pendingType = null; };
