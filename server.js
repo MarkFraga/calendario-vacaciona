@@ -16,8 +16,21 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Connect to MongoDB Atlas
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/calendario_vacacional';
-mongoose.connect(MONGODB_URI, {
+const MONGODB_URI = process.env.MONGODB_URI;
+
+console.log("--- MONGODB DIAGNOSTICS ---");
+if (!MONGODB_URI) {
+    console.log("CRITICAL ERROR: MONGODB_URI IS UNDEFINED IN ENV VARIABLES");
+} else {
+    // Print a masked version to ensure it exists but protect the password
+    const maskedUri = MONGODB_URI.replace(/:([^:@]+)@/, ':***@');
+    console.log("URI found in Env Variables:", maskedUri);
+}
+console.log("---------------------------");
+
+const connectionUri = MONGODB_URI || 'mongodb://127.0.0.1:27017/calendario_vacacional';
+
+mongoose.connect(connectionUri, {
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
     family: 4 // Use IPv4, skip trying IPv6 first
