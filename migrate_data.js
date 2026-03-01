@@ -81,8 +81,8 @@ async function migrate() {
             let role = 'employee';
             let password_hash = employeeHash;
 
-            // Give admin rights based on specific user properties (like 'hideFromList') or manually define administrators
-            if (emp.name.includes("Administrativo 1") || emp.name.includes("Director")) {
+            // Give admin rights exclusively to the boss
+            if (emp.name.toUpperCase().includes("JEFE")) {
                 role = 'admin';
                 password_hash = adminHash;
             }

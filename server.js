@@ -17,7 +17,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Connect to MongoDB Atlas
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/calendario_vacacional';
-mongoose.connect(MONGODB_URI).then(() => {
+mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+    family: 4 // Use IPv4, skip trying IPv6 first
+}).then(() => {
     console.log('Connected to MongoDB.');
 }).catch(err => {
     console.error('Error connecting to MongoDB:', err.message);
