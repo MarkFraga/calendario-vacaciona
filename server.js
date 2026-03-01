@@ -93,9 +93,15 @@ const isAdmin = (req, res, next) => {
 // --- AUTH ROUTES ---
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
+    console.log(`[LOGIN ATTEMPT] Username received: '${username}' password length: ${password ? password.length : 0}`);
     try {
-        const user = await User.findOne({ username });
-        if (!user) return res.status(401).json({ error: 'User not found' });
+        // Strip accidental massive whitespaces or newlines just in case
+        const cleanUsername = username ? username.trim() : '';
+        const user = await User.findOne({ username: cleanUsername });
+        if (!user) {
+            console.log(`[LOGIN FAILED] Database could not find user: '${cleanUsername}'`);
+            return res.status(401).json({ error: 'User not found' });
+        }
 
         if (await bcrypt.compare(password, user.password_hash)) {
             const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET_KEY, { expiresIn: '24h' });
