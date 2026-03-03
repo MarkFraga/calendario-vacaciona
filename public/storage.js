@@ -96,6 +96,49 @@ const Storage = {
         } catch (e) {
             return false;
         }
+    },
+
+    async updateEmployee(empData) {
+        try {
+            const res = await fetch(`${API_URL}/admin/employee`, {
+                method: 'PUT',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify(empData)
+            });
+            return res.ok;
+        } catch (e) {
+            console.error(e);
+            return false;
+        }
+    },
+
+    async createEmployee(empData) {
+        try {
+            const res = await fetch(`${API_URL}/admin/employee`, {
+                method: 'POST',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify(empData)
+            });
+            if (!res.ok) return null;
+            const data = await res.json();
+            return data.id || null;
+        } catch (e) {
+            console.error(e);
+            return null;
+        }
+    },
+
+    async deleteEmployee(empId) {
+        try {
+            const res = await fetch(`${API_URL}/admin/employee/${empId}`, {
+                method: 'DELETE',
+                headers: this.getAuthHeaders()
+            });
+            return res.ok;
+        } catch (e) {
+            console.error(e);
+            return false;
+        }
     }
 };
 

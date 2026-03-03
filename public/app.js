@@ -1,6 +1,7 @@
 // Electron dependencies removed. Web context assumed.
 
-const DEFAULT_FLEXIBLE_DAYS = 14;
+const DEFAULT_FLEXIBLE_DAYS = 16;
+const FIXED_COMPANY_DAYS = 14;
 
 function getEmpDisplayName(emp) {
     return emp.nickname ? `${emp.name} (${emp.nickname})` : emp.name;
@@ -115,12 +116,14 @@ function updateStats() {
     const statsDiv = document.getElementById('user-stats');
     const userVac = Storage.data.userVacations[currentUserId] || [];
 
-    const base = DEFAULT_FLEXIBLE_DAYS;
+    const flexBase = DEFAULT_FLEXIBLE_DAYS;
     const extra = Storage.data.extraDays[currentUserId] || 0;
-    const totalAllowed = base + extra;
+    const totalFlexible = flexBase + extra;
+    const globalTotal = FIXED_COMPANY_DAYS + totalFlexible;
 
     const vacCount = userVac.filter(v => v.type === 'vacation').length;
     const apCount = userVac.filter(v => v.type === 'personal').length;
+    const totalUsed = vacCount + apCount;
 
     if (currentUserId === 19 || currentUserId === 20) {
         statsDiv.innerHTML = `
@@ -129,14 +132,17 @@ function updateStats() {
       Asuntos Propios: ${apCount}
     `;
     } else {
-        const remaining = totalAllowed - (vacCount + apCount);
+        const remainingFlex = totalFlexible - totalUsed;
         statsDiv.innerHTML = `
-      Días Libres Base: ${base}<br>
+      <strong style="color:var(--secondary-color)">📊 Cómputo Global: ${globalTotal} días</strong><br>
+      <hr style="margin:6px 0;border-color:#eee">
+      Días Empresa (fijos): ${FIXED_COMPANY_DAYS}<br>
+      Días Elegibles: ${flexBase}<br>
       Días Extra: ${extra}<br>
-      <strong>Total Permitido: ${totalAllowed}</strong><br>
+      <hr style="margin:6px 0;border-color:#eee">
       Vacaciones Gastadas: ${vacCount}<br>
-      Asuntos Propios Gastados: ${apCount}<br>
-      <strong>Restantes: ${remaining}</strong>
+      Asuntos Propios: ${apCount}<br>
+      <strong>Restantes (elegibles): ${remainingFlex}</strong>
     `;
     }
 }
@@ -337,54 +343,67 @@ document.getElementById('emp-save-btn').onclick = async () => {
     }
 
     if (editingEmpId) {
-        // Edit existing
-        const emp = Storage.data.employees.find(e => e.id === editingEmpId);
-        if (emp) {
-            emp.name = name;
-            emp.nickname = nickname;
-            emp.dept = dept;
-            emp.group = group;
-            emp.color = color;
-            emp.hideFromList = hide;
+        // Edit existing — call server API
+        const success = await Storage.updateEmployee({
+            id: editingEmpId, name, nickname, dept, group, color, hideFromList: hide
+        });
+        if (success) {
+            const emp = Storage.data.employees.find(e => e.id === editingEmpId);
+            if (emp) {
+                emp.name = name;
+                emp.nickname = nickname;
+                emp.dept = dept;
+                emp.group = group;
+                emp.color = color;
+                emp.hideFromList = hide;
+            }
+            renderEmpManageList();
+            renderSidebar();
+            updateUI();
+            showCustomAlert("Empleado guardado correctamente.");
+        } else {
+            showCustomAlert("Error al guardar el empleado en el servidor.");
         }
     } else {
-        // Create new
-        const newId = Math.max(...Storage.data.employees.map(e => e.id), 0) + 1;
-        Storage.data.employees.push({
-            id: newId,
-            name: name,
-            nickname: nickname,
-            dept: dept,
-            group: group,
-            color: color,
-            hideFromList: hide
+        // Create new — call server API
+        const newId = await Storage.createEmployee({
+            name, nickname, dept, group, color, hideFromList: hide
         });
+        if (newId) {
+            Storage.data.employees.push({
+                id: newId, name, nickname, dept, group, color, hideFromList: hide
+            });
+            renderEmpManageList();
+            renderSidebar();
+            updateUI();
+            showCustomAlert("Empleado creado correctamente.");
+        } else {
+            showCustomAlert("Error al crear el empleado en el servidor.");
+        }
     }
-
-    await Storage.save();
-    renderEmpManageList();
-    renderSidebar();
-    updateUI();
-    showCustomAlert("Empleado guardado.");
 };
 
 document.getElementById('emp-delete-btn').onclick = async () => {
     if (editingEmpId) {
         const empIdx = Storage.data.employees.findIndex(e => e.id === editingEmpId);
         if (empIdx >= 0) {
-            Storage.data.employees.splice(empIdx, 1);
-            if (Storage.data.userVacations[editingEmpId]) delete Storage.data.userVacations[editingEmpId];
-            if (Storage.data.extraDays[editingEmpId]) delete Storage.data.extraDays[editingEmpId];
+            const success = await Storage.deleteEmployee(editingEmpId);
+            if (success) {
+                Storage.data.employees.splice(empIdx, 1);
+                if (Storage.data.userVacations[editingEmpId]) delete Storage.data.userVacations[editingEmpId];
+                if (Storage.data.extraDays[editingEmpId]) delete Storage.data.extraDays[editingEmpId];
 
-            await Storage.save();
-            if (currentUserId === editingEmpId) {
-                currentUserId = Storage.data.employees[0] ? Storage.data.employees[0].id : null;
+                if (currentUserId === editingEmpId) {
+                    currentUserId = Storage.data.employees[0] ? Storage.data.employees[0].id : null;
+                }
+                document.getElementById('emp-new-btn').click();
+                renderEmpManageList();
+                renderSidebar();
+                updateUI();
+                showCustomAlert("Empleado eliminado.");
+            } else {
+                showCustomAlert("Error al eliminar el empleado del servidor.");
             }
-            document.getElementById('emp-new-btn').click();
-            renderEmpManageList();
-            renderSidebar();
-            updateUI();
-            showCustomAlert("Empleado eliminado.");
         }
     }
 };
@@ -447,17 +466,19 @@ function selectEmpTab(id) {
         document.getElementById('det-emp-dept').textContent = `${emp.dept} - ${emp.group}`;
 
         const userVac = Storage.data.userVacations[emp.id] || [];
-        const base = DEFAULT_FLEXIBLE_DAYS;
+        const flexBase = DEFAULT_FLEXIBLE_DAYS;
         const extra = Storage.data.extraDays[emp.id] || 0;
-        const totalAllowed = base + extra;
+        const totalFlexible = flexBase + extra;
+        const globalTotal = FIXED_COMPANY_DAYS + totalFlexible;
         const vacCount = userVac.filter(v => v.type === 'vacation').length;
         const apCount = userVac.filter(v => v.type === 'personal').length;
+        const totalUsed = vacCount + apCount;
 
         if (emp.id === 19 || emp.id === 20) {
             document.getElementById('det-emp-stats').textContent = `Días usados: ${vacCount} Vac. / ${apCount} AP (Sin límites)`;
         } else {
-            const remaining = totalAllowed - (vacCount + apCount);
-            document.getElementById('det-emp-stats').textContent = `Días restantes: ${remaining} (de ${totalAllowed})`;
+            const remainingFlex = totalFlexible - totalUsed;
+            document.getElementById('det-emp-stats').textContent = `Cómputo Global: ${globalTotal} días | Elegibles restantes: ${remainingFlex} (de ${totalFlexible})`;
         }
 
         const ul = document.getElementById('det-emp-dates');

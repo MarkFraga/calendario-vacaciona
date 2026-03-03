@@ -199,6 +199,67 @@ app.post('/api/admin/extra_days', authenticateToken, isAdmin, async (req, res) =
     }
 });
 
+// --- EMPLOYEE MANAGEMENT ---
+// Update an existing employee's profile fields (NOT vacations/extraDays)
+app.put('/api/admin/employee', authenticateToken, isAdmin, async (req, res) => {
+    const { id, name, nickname, dept, group, color, hideFromList } = req.body;
+    try {
+        const result = await User.updateOne({ id }, {
+            $set: { name, nickname, dept, group, color, hideFromList: !!hideFromList }
+        });
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Employee not found' });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Create a new employee
+app.post('/api/admin/employee', authenticateToken, isAdmin, async (req, res) => {
+    const { name, nickname, dept, group, color, hideFromList } = req.body;
+    try {
+        // Generate the next available numeric ID
+        const maxUser = await User.findOne({}).sort({ id: -1 });
+        const newId = maxUser ? maxUser.id + 1 : 1;
+
+        // Create a default username and password for the new employee
+        const username = name.toLowerCase().replace(/\s+/g, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const password_hash = await bcrypt.hash('1234', 10);
+
+        const newUser = await User.create({
+            id: newId,
+            username,
+            password_hash,
+            role: 'employee',
+            name,
+            nickname: nickname || '',
+            dept,
+            group,
+            color,
+            hideFromList: !!hideFromList,
+            extraDays: 0
+        });
+        res.json({ success: true, id: newId });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete an employee (vacations are kept orphaned, not deleted, for safety)
+app.delete('/api/admin/employee/:id', authenticateToken, isAdmin, async (req, res) => {
+    const empId = parseInt(req.params.id);
+    try {
+        await User.deleteOne({ id: empId });
+        // Optionally clean up vacations too
+        await Vacation.deleteMany({ user_id: empId });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

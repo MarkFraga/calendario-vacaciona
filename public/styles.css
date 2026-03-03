@@ -549,11 +549,23 @@ main {
    ============================================================== */
 @media (max-width: 900px) {
 
+  /* Allow scrolling on mobile */
+  body {
+    overflow: auto;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .app-container {
+    height: auto;
+    min-height: 100vh;
+  }
+
   /* Header adjustments */
   header {
     flex-direction: column;
-    padding: 1rem;
-    gap: 10px;
+    padding: 0.8rem 1rem;
+    gap: 8px;
   }
 
   .header-left,
@@ -564,27 +576,231 @@ main {
     text-align: center;
   }
 
-  /* Make the main grid flow vertically instead of horizontally */
-  #view-calendar,
-  #view-employees>div {
-    flex-direction: column;
-    overflow-y: auto;
+  .header-left h1 {
+    font-size: 1.2rem;
+    margin-bottom: 0.3rem;
+    width: 100%;
   }
 
-  .sidebar,
-  .emp-sidebar {
+  .header-right {
+    display: none;
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    padding: 0;
+    justify-content: stretch;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 0.7rem 0.3rem;
+    font-size: 0.85rem;
+    text-align: center;
+  }
+
+  /* Main area — switch to vertical stacking */
+  main {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  /* Calendar view — vertical layout on mobile */
+  #view-calendar {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    height: auto !important;
+  }
+
+  #view-employees>div {
+    flex-direction: column !important;
+    height: auto !important;
+  }
+
+  /* Sidebar — horizontal scrollable strip on mobile */
+  .sidebar {
     width: 100%;
-    max-height: 250px;
+    max-height: none;
     border-right: none;
     border-bottom: 2px solid var(--border-color);
+    box-shadow: none;
+    padding: 1rem;
+    gap: 1rem;
+    flex-shrink: 0;
+  }
+
+  .sidebar h3 {
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Employee list scrolls horizontally on mobile */
+  .sidebar .employee-list {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 4px;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebar .employee-list .group-title {
+    display: none;
+  }
+
+  .sidebar .employee-list .employee-item {
+    flex-shrink: 0;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    background: white;
+  }
+
+  .sidebar .employee-list .employee-item.selected {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    border-left: none;
+  }
+
+  /* Admin panel on mobile */
+  .admin-panel {
+    padding: 0;
+  }
+
+  .admin-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .admin-controls label {
+    font-size: 0.85rem;
+    width: 100%;
+  }
+
+  .admin-controls input[type="number"] {
+    width: 60px;
+    padding: 6px;
+  }
+
+  /* Selection panel compact */
+  .selection-panel {
+    padding: 0.8rem;
+  }
+
+  .selection-panel h3 {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .radio-group {
+    flex-direction: row;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .radio-group label {
+    font-size: 0.85rem;
+  }
+
+  /* Stats panel */
+  .stats {
+    font-size: 0.85rem;
+    padding: 0.6rem;
+    margin-top: 0.5rem;
+  }
+
+  /* Admin mode toggle */
+  .admin-mode-toggle {
+    margin-bottom: 1rem;
+  }
+
+  .toggle-label {
+    padding: 0.6rem;
+    font-size: 0.85rem;
+  }
+
+  /* Calendar adjustments */
+  .calendar-area {
+    padding: 0.8rem;
+    min-height: 400px;
+    flex: none;
+  }
+
+  .calendar-header {
+    font-size: 0.7rem;
+    gap: 2px;
+    margin-bottom: 4px;
+  }
+
+  .calendar-header div {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .calendar-grid {
+    gap: 2px;
+    grid-template-rows: repeat(6, minmax(50px, 1fr));
+  }
+
+  .day-cell {
+    padding: 0.15rem;
+    font-size: 0.75rem;
+    min-height: 50px;
+  }
+
+  .day-number {
+    font-size: 0.8rem;
+    margin-bottom: 2px;
+  }
+
+  .vacation-bar {
+    height: 4px !important;
+  }
+
+  /* Mascots hidden on mobile */
+  .mascots {
+    display: none;
+  }
+
+  /* Modals full-width on mobile */
+  #emp-modal .modal-content,
+  .alert-box,
+  .confirm-box,
+  .assignment-box {
+    width: 95% !important;
+    max-width: 95% !important;
+    padding: 1.2rem !important;
+  }
+
+  .emp-form input[type="text"],
+  .emp-form input[type="color"],
+  .emp-form select {
+    width: 100%;
+    font-size: 0.9rem;
+  }
+
+  /* Employee tab view on mobile */
+  .emp-sidebar {
+    width: 100% !important;
+    max-height: none !important;
+    border-right: none !important;
+    border-bottom: 2px solid var(--border-color);
+    padding: 1rem !important;
   }
 
   .emp-details {
-    padding: 1rem;
+    padding: 1rem !important;
   }
 
+  /* Stack the details + export panels vertically */
   .emp-details>div>div {
-    flex-direction: column;
+    display: flex !important;
+    flex-direction: column !important;
     gap: 1rem !important;
   }
 
@@ -592,24 +808,19 @@ main {
     width: 100% !important;
   }
 
-  /* Calendar adjustments */
-  .calendar-area {
-    padding: 1rem;
-    min-height: 500px;
+  /* Export button section */
+  #emp-details-content .selection-panel {
+    margin-top: 1rem;
   }
 
-  .day-cell {
-    padding: 0.2rem;
-    font-size: 0.8rem;
-  }
-
-  .day-number {
+  #emp-details-content .selection-panel button {
     font-size: 0.9rem;
+    padding: 10px;
   }
 
-  /* Mascots need to go on very small screens to save space */
-  .mascots {
-    display: none;
+  /* Manage employees modal list */
+  #emp-list-manage>div {
+    font-size: 0.85rem;
   }
 }
 
@@ -617,20 +828,72 @@ main {
   .controls {
     flex-wrap: wrap;
     justify-content: center;
+    gap: 0.5rem;
   }
 
   .controls h2 {
     width: 100%;
-    margin: 5px 0;
+    margin: 3px 0;
+    font-size: 1rem;
+    min-width: auto;
   }
 
-  .tab-bar {
-    padding: 0;
-    justify-content: space-around;
+  .controls button {
+    padding: 0.2rem 0.5rem;
+    font-size: 1rem;
+  }
+
+  select {
+    font-size: 0.85rem;
   }
 
   .tab-btn {
-    padding: 0.8rem 0.5rem;
-    font-size: 0.9rem;
+    padding: 0.6rem 0.3rem;
+    font-size: 0.8rem;
+  }
+
+  .calendar-header {
+    font-size: 0.6rem;
+  }
+
+  .calendar-header div {
+    padding: 2px 0;
+  }
+
+  .day-cell {
+    min-height: 40px;
+    padding: 0.1rem;
+  }
+
+  .day-number {
+    font-size: 0.7rem;
+  }
+
+  /* Better mobile employee pills */
+  .sidebar .employee-list .employee-item {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .sidebar .employee-list .employee-item .color-dot {
+    width: 8px;
+    height: 8px;
+    margin-right: 5px;
+  }
+
+  /* Compact stats on tiny screens */
+  .stats {
+    font-size: 0.8rem;
+    padding: 0.5rem;
+  }
+
+  /* Modal buttons */
+  .confirm-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .confirm-actions button {
+    width: 100%;
   }
 }
