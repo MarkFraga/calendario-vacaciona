@@ -54,9 +54,7 @@
               <input type="number" id="extra-days-input" min="0" max="30" value="0">
               <button id="grant-days-btn">Guardar</button>
             </div>
-            <button id="manage-emp-btn" class="manage-emp-btn"
-              style="margin-top: 10px; width: 100%; border-radius: 4px; padding: 6px; font-family: 'Outfit'; background: #333; color: white; border: none; cursor: pointer;">Gestionar
-              Empleados</button>
+            <button id="manage-emp-btn" class="btn btn-dark">Gestionar Empleados</button>
           </div>
           <div class="selection-panel">
             <div class="admin-mode-toggle">
@@ -123,18 +121,10 @@
                   <div class="selection-panel" style="background: var(--day-bg);">
                     <h3 style="margin-bottom: 1rem; color: var(--secondary-color);">Exportar y Compartir</h3>
                     <div style="display: flex; flex-direction: column; gap: 10px;">
-                      <button id="export-pdf-btn"
-                        style="padding: 10px; border-radius: 4px; border: none; cursor: pointer; background: #e74c3c; color: white; font-family: 'Outfit'; font-size: 1rem;">📄
-                        Exportar a PDF</button>
-                      <button id="export-excel-btn"
-                        style="padding: 10px; border-radius: 4px; border: none; cursor: pointer; background: #27ae60; color: white; font-family: 'Outfit'; font-size: 1rem;">📊
-                        Exportar a Excel</button>
-                      <button id="share-wa-btn"
-                        style="padding: 10px; border-radius: 4px; border: none; cursor: pointer; background: #25D366; color: white; font-family: 'Outfit'; font-size: 1rem;">💬
-                        Compartir WhatsApp</button>
-                      <button id="share-email-btn"
-                        style="padding: 10px; border-radius: 4px; border: none; cursor: pointer; background: #3498db; color: white; font-family: 'Outfit'; font-size: 1rem;">✉️
-                        Enviar por Email</button>
+                      <button id="export-pdf-btn" class="btn btn-danger">📄 Exportar a PDF</button>
+                      <button id="export-excel-btn" class="btn btn-success">📊 Exportar a Excel</button>
+                      <button id="share-wa-btn" class="btn btn-whatsapp">💬 Compartir WhatsApp</button>
+                      <button id="share-email-btn" class="btn btn-info">✉️ Enviar por Email</button>
                     </div>
                   </div>
                 </div>
@@ -190,16 +180,10 @@
           <input type="checkbox" id="emp-hide"> Ocultar de la lista
         </label>
         <div style="display: flex; gap: 10px;">
-          <button id="emp-save-btn"
-            style="flex: 1; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-family: 'Outfit';">Guardar
-            Empleado</button>
-          <button id="emp-delete-btn"
-            style="flex: 1; padding: 10px; background: #F44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: 'Outfit'; display: none;">Eliminar
-            Empleado</button>
+          <button id="emp-save-btn" class="btn btn-primary" style="flex: 1;">Guardar Empleado</button>
+          <button id="emp-delete-btn" class="btn btn-danger" style="flex: 1; display: none;">Eliminar Empleado</button>
         </div>
-        <button id="emp-new-btn"
-          style="padding: 8px; background: #e0e0e0; border: none; border-radius: 4px; cursor: pointer; font-family: 'Outfit'; margin-top: 8px;">Formulario
-          en Blanco Nuevo</button>
+        <button id="emp-new-btn" class="btn btn-light" style="margin-top: 8px;">Formulario en Blanco Nuevo</button>
       </div>
       <div id="emp-list-manage" style="display: flex; flex-direction: column; gap: 5px;"></div>
     </div>
