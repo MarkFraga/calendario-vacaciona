@@ -719,36 +719,53 @@ async function processGlobalExcelExport(format, showNames) {
 
 async function generateCalendarPDF(filename, focusEmpId, showNames) {
     const year = parseInt(document.getElementById('year-select').value);
-    
+
     const tempDiv = document.createElement('div');
     tempDiv.id = 'print-calendar-container';
     tempDiv.style.position = 'absolute';
     tempDiv.style.left = '-9999px';
-    tempDiv.style.width = '1000px'; 
+    tempDiv.style.top = '0';
+    tempDiv.style.width = '1000px';
     tempDiv.style.display = 'flex';
     tempDiv.style.flexWrap = 'wrap';
     tempDiv.style.gap = '15px';
     tempDiv.style.padding = '20px';
     tempDiv.style.background = 'white';
+    tempDiv.style.height = 'auto'; // allow natural vertical scaling
     document.body.appendChild(tempDiv);
 
     renderYearlyCalendar('print-calendar-container', year, Storage.data, showNames, focusEmpId);
 
     try {
-        const canvas = await html2canvas(tempDiv, { scale: 2 });
+        const canvas = await html2canvas(tempDiv, {
+            scale: 2,
+            windowWidth: tempDiv.scrollWidth,
+            windowHeight: tempDiv.scrollHeight
+        });
         const imgData = canvas.toDataURL('image/png');
         const { jsPDF } = window.jspdf;
-        
-        let orientation = 'l';
+
+        let orientation = 'p';
         const pdf = new jsPDF(orientation, 'pt', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
+        const pdfPageHeight = pdf.internal.pageSize.getHeight();
+
+        let finalWidth = pdfWidth - 40;
+        let finalHeight = (canvas.height * finalWidth) / canvas.width;
+
+        if (finalHeight > pdfPageHeight - 80) {
+            finalHeight = pdfPageHeight - 80;
+            finalWidth = (canvas.width * finalHeight) / canvas.height;
+        }
+
         pdf.setFontSize(16);
         let title = focusEmpId ? `Calendario de Vacaciones: ${getEmpDisplayName(Storage.data.employees.find(e => e.id === focusEmpId))} - ${year}` : `Calendario Global de Vacaciones - ${year}`;
         pdf.text(title, 40, 40);
 
-        pdf.addImage(imgData, 'PNG', 20, 60, pdfWidth - 40, pdfHeight - 40);
+        let xOffset = (pdfWidth - finalWidth) / 2;
+        if (xOffset < 20) xOffset = 20;
+
+        pdf.addImage(imgData, 'PNG', xOffset, 60, finalWidth, finalHeight);
         pdf.save(`${filename}.pdf`);
         showCustomAlert("Calendario PDF exportado exitosamente.");
     } catch (e) {
@@ -762,7 +779,7 @@ function generateCalendarExcel(filename, focusEmpId, showNames) {
     const year = parseInt(document.getElementById('year-select').value);
     const wb = XLSX.utils.book_new();
     const ws_data = [];
-    
+
     let title = focusEmpId ? `Calendario de Vacaciones: ${getEmpDisplayName(Storage.data.employees.find(e => e.id === focusEmpId))} - ${year}` : `Calendario Global de Vacaciones - ${year}`;
     ws_data.push([title]);
     ws_data.push([]);
@@ -770,13 +787,13 @@ function generateCalendarExcel(filename, focusEmpId, showNames) {
     for (let month = 0; month < 12; month++) {
         ws_data.push([monthNamesList[month]]);
         ws_data.push(['L', 'M', 'X', 'J', 'V', 'S', 'D']);
-        
+
         const daysInMonth = getDaysInMonth(year, month);
         const firstDay = getFirstDayOfMonth(year, month);
-        
+
         let currentWeek = [];
         for (let i = 0; i < firstDay; i++) {
-            currentWeek.push(""); 
+            currentWeek.push("");
         }
 
         for (let day = 1; day <= daysInMonth; day++) {
@@ -802,13 +819,13 @@ function generateCalendarExcel(filename, focusEmpId, showNames) {
             }
 
             currentWeek.push(cellText);
-            
+
             if (currentWeek.length === 7) {
                 ws_data.push(currentWeek);
                 currentWeek = [];
             }
         }
-        
+
         if (currentWeek.length > 0) {
             while (currentWeek.length < 7) currentWeek.push("");
             ws_data.push(currentWeek);
