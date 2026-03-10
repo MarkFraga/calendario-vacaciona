@@ -396,10 +396,10 @@ document.getElementById('emp-new-btn').onclick = () => {
 };
 
 document.getElementById('emp-save-btn').onclick = async () => {
-    const name = document.getElementById('emp-name').value;
-    const nickname = document.getElementById('emp-nickname').value;
-    const dept = document.getElementById('emp-dept').value;
-    const group = document.getElementById('emp-group').value;
+    const name = document.getElementById('emp-name').value.trim();
+    const nickname = document.getElementById('emp-nickname').value.trim();
+    const dept = document.getElementById('emp-dept').value.trim();
+    const group = document.getElementById('emp-group').value.trim();
     const color = document.getElementById('emp-color').value;
     const hide = document.getElementById('emp-hide').checked;
 
@@ -423,10 +423,18 @@ document.getElementById('emp-save-btn').onclick = async () => {
                 emp.color = color;
                 emp.hideFromList = hide;
             }
+            // Sort employees by department so groups render correctly in Sidebar and Calendars
+            Storage.data.employees.sort((a, b) => {
+                if (a.dept < b.dept) return -1;
+                if (a.dept > b.dept) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            await Storage.save();
             renderEmpManageList();
             renderSidebar();
             updateUI();
-            showCustomAlert("Empleado guardado correctamente.");
+            showCustomAlert("Empleado guardado.");
         } else {
             showCustomAlert("Error al guardar el empleado en el servidor.");
         }
@@ -439,6 +447,13 @@ document.getElementById('emp-save-btn').onclick = async () => {
             Storage.data.employees.push({
                 id: newId, name, nickname, dept, group, color, hideFromList: hide
             });
+            // Sort employees by department so groups render correctly in Sidebar and Calendars
+            Storage.data.employees.sort((a, b) => {
+                if (a.dept < b.dept) return -1;
+                if (a.dept > b.dept) return 1;
+                return a.name.localeCompare(b.name);
+            });
+            
             renderEmpManageList();
             renderSidebar();
             updateUI();
@@ -766,15 +781,15 @@ function getSubstitutionsData() {
         for (const uid in Storage.data.substitutions[date]) {
             const subName = Storage.data.substitutions[date][uid].trim();
             if (!subName) continue;
-            
+
             const emp = Storage.data.employees.find(e => e.id === parseInt(uid));
             if (!emp) continue;
 
             // If filtering by employee
             if (selectedEmpId !== 'all') {
                 const isSubstituted = (emp.id === parseInt(selectedEmpId));
-                const isSubstituting = subName.toLowerCase().includes(Storage.data.employees.find(e => e.id === parseInt(selectedEmpId)).name.toLowerCase()) || 
-                                       subName.toLowerCase().includes(Storage.data.employees.find(e => e.id === parseInt(selectedEmpId)).nickname.toLowerCase());
+                const isSubstituting = subName.toLowerCase().includes(Storage.data.employees.find(e => e.id === parseInt(selectedEmpId)).name.toLowerCase()) ||
+                    subName.toLowerCase().includes(Storage.data.employees.find(e => e.id === parseInt(selectedEmpId)).nickname.toLowerCase());
                 if (!isSubstituted && !isSubstituting) continue;
             }
 
@@ -796,15 +811,15 @@ async function processSubPdfExport(format, showNames) {
         const { jsPDF } = window.jspdf;
         const data = getSubstitutionsData();
         const doc = new jsPDF();
-        
+
         const selectedEmpId = document.getElementById('sub-emp-select').value;
         const title = selectedEmpId === 'all' ? `Listado Global de Sustituciones` : `Sustituciones de ${getEmpDisplayName(Storage.data.employees.find(e => e.id === parseInt(selectedEmpId)))}`;
-        
+
         doc.text(title, 14, 15);
         const tableData = data.map(row => [row.Fecha, row.Ausente, row.Sustituto]);
         doc.autoTable({ startY: 25, head: [['Fecha', 'Personal Ausente', 'Personal Sustituto']], body: tableData });
         const filename = selectedEmpId === 'all' ? 'Sustituciones_Globales' : `Sustituciones_${data[0] ? data[0].Ausente.replace(/\s+/g, '_') : 'Empleado'}`;
-        
+
         doc.save(`${filename}.pdf`);
         showCustomAlert("PDF de Sustituciones exportado con éxito.");
     } else {
@@ -821,7 +836,7 @@ async function processSubExcelExport(format, showNames) {
         const ws = XLSX.utils.json_to_sheet(exportData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Sustituciones");
-        
+
         const selectedEmpId = document.getElementById('sub-emp-select').value;
         const filename = selectedEmpId === 'all' ? 'Sustituciones_Globales' : `Sustituciones_${data[0] ? data[0].Ausente.replace(/\s+/g, '_') : 'Empleado'}`;
 
@@ -836,7 +851,7 @@ async function processSubExcelExport(format, showNames) {
 async function generateCalendarPDF(filename, focusEmpId, showNames) {
     const year = parseInt(document.getElementById('year-select').value);
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'pt', 'a4');
+    const pdf = new jsPDF('l', 'pt', 'a4'); // Changed to Landscape for more width
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfPageHeight = pdf.internal.pageSize.getHeight();
     const title = focusEmpId ? `Calendario de Vacaciones: ${getEmpDisplayName(Storage.data.employees.find(e => e.id === focusEmpId))} - ${year}` : `Calendario Global de Vacaciones - ${year}`;
@@ -852,7 +867,7 @@ async function generateCalendarPDF(filename, focusEmpId, showNames) {
         tempDiv.style.position = 'absolute';
         tempDiv.style.left = '-9999px';
         tempDiv.style.top = '0';
-        tempDiv.style.width = '1000px';
+        tempDiv.style.width = '1400px'; // Wider container allows names more breathing room
         tempDiv.style.display = 'flex';
         tempDiv.style.flexWrap = 'wrap';
         tempDiv.style.gap = '15px';
