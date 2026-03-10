@@ -12,6 +12,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 
 <body>
@@ -130,13 +131,24 @@
               <div style="display: flex; gap: 2rem;">
                 <div style="flex: 1;">
                   <h3
-                    style="margin-bottom: 1rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem; display: inline-block;">
-                    Días Seleccionados</h3>
+                    style="margin-bottom: 1rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Vacaciones Seleccionadas</span>
+                    <button id="toggle-emp-view-btn"
+                      style="font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--primary-color); background: white; color: var(--primary-color); cursor: pointer; font-family: 'Outfit'; font-weight: bold;">Ver
+                      como Calendario Anual</button>
+                  </h3>
                   <div id="det-emp-stats" style="margin-bottom: 1rem; font-weight: bold;"></div>
-                  <ul id="det-emp-dates"
-                    style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px;">
-                    <!-- dates injected here -->
-                  </ul>
+
+                  <div id="emp-list-view">
+                    <ul id="det-emp-dates"
+                      style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px;">
+                      <!-- dates injected here -->
+                    </ul>
+                  </div>
+
+                  <div id="emp-calendar-view" style="display: none; flex-wrap: wrap; gap: 10px;">
+                    <!-- 12 mini months injected here -->
+                  </div>
                 </div>
                 <div style="width: 300px;">
                   <div class="selection-panel" style="background: var(--day-bg);">
@@ -196,6 +208,42 @@
       <div class="confirm-actions">
         <button id="confirm-cancel">Cancelar</button>
         <button id="confirm-accept">Sí, añadir día extra</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="export-options-modal" class="modal"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+    <div class="modal-content"
+      style="background: white; padding: 2rem; border-radius: 8px; width: 400px; max-width: 90%; font-family: 'Outfit', sans-serif;">
+      <h2 style="margin-top: 0; color: var(--primary-color);">Opciones de Exportación</h2>
+      <p style="color: #666; margin-bottom: 1.5rem;" id="export-modal-desc">Elige el formato de salida para el
+        documento:</p>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">Estructura del documento:</label>
+        <div class="radio-group" style="display: flex; gap: 1rem;">
+          <label style="cursor: pointer;"><input type="radio" name="export-format" value="list" checked> 📝 Listado
+            Clásico</label>
+          <label style="cursor: pointer;"><input type="radio" name="export-format" value="calendar"> 🗓️ Calendario
+            Anual</label>
+        </div>
+      </div>
+
+      <div id="export-display-options" style="margin-bottom: 1.5rem; display: none;">
+        <label style="font-weight: bold; display: block; margin-bottom: 0.5rem;">Visualización de Días (Solo
+          Calendario):</label>
+        <div class="radio-group" style="display: flex; gap: 1rem;">
+          <label style="cursor: pointer;"><input type="radio" name="export-display" value="colors" checked> 🎨 Solo
+            Colores</label>
+          <label style="cursor: pointer;"><input type="radio" name="export-display" value="names"> 👤
+            Nombres/Iniciales</label>
+        </div>
+      </div>
+
+      <div class="confirm-actions" style="margin-top: 2rem;">
+        <button id="export-modal-cancel" class="btn btn-light">Cancelar</button>
+        <button id="export-modal-accept" class="btn btn-primary">Proceder a Exportar</button>
       </div>
     </div>
   </div>

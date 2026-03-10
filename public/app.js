@@ -442,6 +442,13 @@ document.getElementById('emp-delete-btn').onclick = async () => {
 
 // EXPORT FUNCTIONS
 let currentEmpTabId = null;
+let currentEmpViewMode = 'list'; // 'list' or 'calendar'
+
+document.getElementById('toggle-emp-view-btn').onclick = () => {
+    currentEmpViewMode = currentEmpViewMode === 'list' ? 'calendar' : 'list';
+    document.getElementById('toggle-emp-view-btn').textContent = currentEmpViewMode === 'list' ? "Ver como Calendario Anual" : "Ver como Listado Clásico";
+    selectEmpTab(currentEmpTabId);
+};
 
 // TABS LOGIC
 document.getElementById('tab-calendar').onclick = () => switchTab('calendar');
@@ -525,6 +532,9 @@ function selectEmpTab(id) {
         }
 
         const ul = document.getElementById('det-emp-dates');
+        const calView = document.getElementById('emp-calendar-view');
+        const listView = document.getElementById('emp-list-view');
+
         ul.innerHTML = '';
         const allData = getUserVacationsData(emp);
         if (allData.length === 0) {
@@ -538,6 +548,16 @@ function selectEmpTab(id) {
                 li.textContent = `${row.Fecha} - ${row.Tipo}`;
                 ul.appendChild(li);
             });
+        }
+
+        if (currentEmpViewMode === 'list') {
+            listView.style.display = 'block';
+            calView.style.display = 'none';
+        } else {
+            listView.style.display = 'none';
+            calView.style.display = 'flex';
+            const year = parseInt(document.getElementById('year-select').value);
+            renderYearlyCalendar('emp-calendar-view', year, Storage.data, false, emp.id);
         }
     }
 }
@@ -594,89 +614,213 @@ function getShareText(emp, data) {
     return text;
 }
 
-document.getElementById('export-pdf-btn').onclick = async () => {
-    const { jsPDF } = window.jspdf;
+// EXPORT MODAL LOGIC
+const exportModal = document.getElementById('export-options-modal');
+const exportDisplayOptions = document.getElementById('export-display-options');
+let pendingExportType = null;
 
-    const emp = Storage.data.employees.find(e => e.id === currentEmpTabId);
-    if (!emp) return;
-    const data = getUserVacationsData(emp);
-
-    const doc = new jsPDF();
-    doc.text(`Vacaciones Seleccionadas: ${getEmpDisplayName(emp)}`, 14, 15);
-    doc.text(`Departamento: ${emp.dept}`, 14, 25);
-
-    const tableData = data.map(row => [row.Fecha, row.Tipo]);
-    doc.autoTable({
-        startY: 30,
-        head: [['Fecha', 'Tipo']],
-        body: tableData,
+document.querySelectorAll('input[name="export-format"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        if (e.target.value === 'calendar') exportDisplayOptions.style.display = 'block';
+        else exportDisplayOptions.style.display = 'none';
     });
+});
 
-    // Native Browser Download
-    doc.save(`Vacaciones_${emp.name.replace(/\s+/g, '_')}.pdf`);
-    showCustomAlert("PDF exportado exitosamente.");
+document.getElementById('export-modal-cancel').onclick = () => {
+    exportModal.style.display = 'none';
+    pendingExportType = null;
 };
 
-document.getElementById('export-excel-btn').onclick = async () => {
+document.getElementById('export-modal-accept').onclick = () => {
+    exportModal.style.display = 'none';
+    const format = document.querySelector('input[name="export-format"]:checked').value;
+    const display = document.querySelector('input[name="export-display"]:checked').value;
+    const showNames = display === 'names';
+
+    if (pendingExportType === 'employee-pdf') processEmployeePdfExport(format, showNames);
+    else if (pendingExportType === 'employee-excel') processEmployeeExcelExport(format, showNames);
+    else if (pendingExportType === 'global-pdf') processGlobalPdfExport(format, showNames);
+    else if (pendingExportType === 'global-excel') processGlobalExcelExport(format, showNames);
+};
+
+function openExportModal(type) {
+    pendingExportType = type;
+    exportModal.style.display = 'flex';
+}
+
+document.getElementById('export-pdf-btn').onclick = () => openExportModal('employee-pdf');
+document.getElementById('export-excel-btn').onclick = () => openExportModal('employee-excel');
+document.getElementById('export-global-pdf-btn').onclick = () => openExportModal('global-pdf');
+document.getElementById('export-global-excel-btn').onclick = () => openExportModal('global-excel');
+
+// EXPORT IMPLEMENTATIONS
+async function processEmployeePdfExport(format, showNames) {
     const emp = Storage.data.employees.find(e => e.id === currentEmpTabId);
     if (!emp) return;
-    const data = getUserVacationsData(emp);
 
-    const ws = XLSX.utils.json_to_sheet(data);
+    if (format === 'list') {
+        const { jsPDF } = window.jspdf;
+        const data = getUserVacationsData(emp).filter(row => row.RawType !== 'fixed');
+        const doc = new jsPDF();
+        doc.text(`Vacaciones Seleccionadas: ${getEmpDisplayName(emp)}`, 14, 15);
+        doc.text(`Departamento: ${emp.dept}`, 14, 25);
+        const tableData = data.map(row => [row.Fecha, row.Tipo]);
+        doc.autoTable({ startY: 30, head: [['Fecha', 'Tipo']], body: tableData });
+        doc.save(`Vacaciones_${emp.name.replace(/\s+/g, '_')}.pdf`);
+        showCustomAlert("PDF exportado exitosamente.");
+    } else {
+        await generateCalendarPDF(`Vacaciones_${emp.name.replace(/\s+/g, '_')}_Calendario`, emp.id, showNames);
+    }
+}
+
+async function processEmployeeExcelExport(format, showNames) {
+    const emp = Storage.data.employees.find(e => e.id === currentEmpTabId);
+    if (!emp) return;
+
+    if (format === 'list') {
+        const data = getUserVacationsData(emp).filter(row => row.RawType !== 'fixed');
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Vacaciones");
+        XLSX.writeFile(wb, `Vacaciones_${emp.name.replace(/\s+/g, '_')}.xlsx`);
+        showCustomAlert("Excel exportado exitosamente.");
+    } else {
+        generateCalendarExcel(`Vacaciones_${emp.name.replace(/\s+/g, '_')}_Calendario`, emp.id, showNames);
+    }
+}
+
+async function processGlobalPdfExport(format, showNames) {
+    if (format === 'list') {
+        const { jsPDF } = window.jspdf;
+        const data = getGlobalVacationsData();
+        const doc = new jsPDF();
+        doc.text(`Vacaciones Globales de la Empresa`, 14, 15);
+        const tableData = data.map(row => [row.Empleado, row.Departamento, row.Fecha, row.Tipo]);
+        doc.autoTable({ startY: 25, head: [['Empleado', 'Departamento', 'Fecha', 'Tipo']], body: tableData });
+        doc.save(`Vacaciones_Globales.pdf`);
+        showCustomAlert("PDF Global exportado exitosamente.");
+    } else {
+        await generateCalendarPDF(`Vacaciones_Globales_Calendario`, null, showNames);
+    }
+}
+
+async function processGlobalExcelExport(format, showNames) {
+    if (format === 'list') {
+        const data = getGlobalVacationsData();
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Vacaciones Globales");
+        XLSX.writeFile(wb, `Vacaciones_Globales.xlsx`);
+        showCustomAlert("Excel Global exportado exitosamente.");
+    } else {
+        generateCalendarExcel(`Vacaciones_Globales_Calendario`, null, showNames);
+    }
+}
+
+async function generateCalendarPDF(filename, focusEmpId, showNames) {
+    const year = parseInt(document.getElementById('year-select').value);
+    
+    const tempDiv = document.createElement('div');
+    tempDiv.id = 'print-calendar-container';
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.width = '1000px'; 
+    tempDiv.style.display = 'flex';
+    tempDiv.style.flexWrap = 'wrap';
+    tempDiv.style.gap = '15px';
+    tempDiv.style.padding = '20px';
+    tempDiv.style.background = 'white';
+    document.body.appendChild(tempDiv);
+
+    renderYearlyCalendar('print-calendar-container', year, Storage.data, showNames, focusEmpId);
+
+    try {
+        const canvas = await html2canvas(tempDiv, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        
+        let orientation = 'l';
+        const pdf = new jsPDF(orientation, 'pt', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        pdf.setFontSize(16);
+        let title = focusEmpId ? `Calendario de Vacaciones: ${getEmpDisplayName(Storage.data.employees.find(e => e.id === focusEmpId))} - ${year}` : `Calendario Global de Vacaciones - ${year}`;
+        pdf.text(title, 40, 40);
+
+        pdf.addImage(imgData, 'PNG', 20, 60, pdfWidth - 40, pdfHeight - 40);
+        pdf.save(`${filename}.pdf`);
+        showCustomAlert("Calendario PDF exportado exitosamente.");
+    } catch (e) {
+        showCustomAlert("Error al generar PDF del calendario.");
+    } finally {
+        document.body.removeChild(tempDiv);
+    }
+}
+
+function generateCalendarExcel(filename, focusEmpId, showNames) {
+    const year = parseInt(document.getElementById('year-select').value);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Vacaciones");
+    const ws_data = [];
+    
+    let title = focusEmpId ? `Calendario de Vacaciones: ${getEmpDisplayName(Storage.data.employees.find(e => e.id === focusEmpId))} - ${year}` : `Calendario Global de Vacaciones - ${year}`;
+    ws_data.push([title]);
+    ws_data.push([]);
 
-    // Native Browser Download
-    XLSX.writeFile(wb, `Vacaciones_${emp.name.replace(/\s+/g, '_')}.xlsx`);
-    showCustomAlert("Excel exportado exitosamente.");
-};
+    for (let month = 0; month < 12; month++) {
+        ws_data.push([monthNamesList[month]]);
+        ws_data.push(['L', 'M', 'X', 'J', 'V', 'S', 'D']);
+        
+        const daysInMonth = getDaysInMonth(year, month);
+        const firstDay = getFirstDayOfMonth(year, month);
+        
+        let currentWeek = [];
+        for (let i = 0; i < firstDay; i++) {
+            currentWeek.push(""); 
+        }
 
-document.getElementById('share-wa-btn').onclick = () => {
-    const emp = Storage.data.employees.find(e => e.id === currentEmpTabId);
-    if (!emp) return;
-    const data = getUserVacationsData(emp);
-    const text = encodeURIComponent(getShareText(emp, data));
-    window.open(`https://wa.me/?text=${text}`, '_blank');
-};
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            let cellText = `${day}`;
 
-document.getElementById('share-email-btn').onclick = () => {
-    const emp = Storage.data.employees.find(e => e.id === currentEmpTabId);
-    if (!emp) return;
-    const data = getUserVacationsData(emp);
-    const subject = encodeURIComponent(`Vacaciones de ${getEmpDisplayName(emp)}`);
-    const body = encodeURIComponent(getShareText(emp, data));
-    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
-};
+            let dayVacs = [];
+            for (const uid in Storage.data.userVacations) {
+                if (focusEmpId && parseInt(uid) !== parseInt(focusEmpId)) continue;
+                const match = Storage.data.userVacations[uid].find(v => v.date === dateStr);
+                if (match) {
+                    const emp = Storage.data.employees.find(e => e.id === parseInt(uid));
+                    if (emp) dayVacs.push(showNames ? (emp.nickname || emp.name.split(' ')[0]) : "X");
+                }
+            }
 
-// GLOBAL EXPORT REFS
-document.getElementById('export-global-pdf-btn').onclick = async () => {
-    const { jsPDF } = window.jspdf;
-    const data = getGlobalVacationsData();
+            if (Storage.data.fixedVacations.includes(dateStr)) {
+                cellText += " [Fijo]";
+            }
 
-    const doc = new jsPDF();
-    doc.text(`Vacaciones Globales de la Empresa`, 14, 15);
+            if (dayVacs.length > 0) {
+                cellText += `\n(${dayVacs.join(', ')})`;
+            }
 
-    const tableData = data.map(row => [row.Empleado, row.Departamento, row.Fecha, row.Tipo]);
-    doc.autoTable({
-        startY: 25,
-        head: [['Empleado', 'Departamento', 'Fecha', 'Tipo']],
-        body: tableData,
-    });
+            currentWeek.push(cellText);
+            
+            if (currentWeek.length === 7) {
+                ws_data.push(currentWeek);
+                currentWeek = [];
+            }
+        }
+        
+        if (currentWeek.length > 0) {
+            while (currentWeek.length < 7) currentWeek.push("");
+            ws_data.push(currentWeek);
+        }
+        ws_data.push([]);
+    }
 
-    doc.save(`Vacaciones_Globales.pdf`);
-    showCustomAlert("PDF Global exportado exitosamente.");
-};
-
-document.getElementById('export-global-excel-btn').onclick = async () => {
-    const data = getGlobalVacationsData();
-
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Vacaciones Globales");
-
-    XLSX.writeFile(wb, `Vacaciones_Globales.xlsx`);
-    showCustomAlert("Excel Global exportado exitosamente.");
-};
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    XLSX.utils.book_append_sheet(wb, ws, "Calendario");
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+    showCustomAlert("Excel Calendario exportado exitosamente.");
+}
 
 document.getElementById('share-global-wa-btn').onclick = () => {
     const data = getGlobalVacationsData();
