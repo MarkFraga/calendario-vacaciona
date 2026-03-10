@@ -115,12 +115,12 @@ function renderCalendar(year, month, currentUserId, store, showNames = false) {
     }
 }
 
-function renderYearlyCalendar(containerId, year, store, showNames = false, focusEmpId = null) {
+function renderYearlyCalendar(containerId, year, store, showNames = false, focusEmpId = null, startMonth = 0, endMonth = 11) {
     const mainContainer = document.getElementById(containerId);
     if (!mainContainer) return;
     mainContainer.innerHTML = '';
 
-    for (let month = 0; month < 12; month++) {
+    for (let month = startMonth; month <= endMonth; month++) {
         const monthWrapper = document.createElement('div');
         monthWrapper.className = 'mini-month';
         monthWrapper.style.border = '1px solid #ddd';
@@ -231,7 +231,7 @@ function renderYearlyCalendar(containerId, year, store, showNames = false, focus
 
                         const nameSpan = document.createElement('span');
                         let shortName = emp.nickname ? emp.nickname : emp.name.split(' ')[0];
-                        if (!focusEmpId) shortName = shortName.substring(0, 3);
+                        // If showNames is enabled, allow the full name/nickname to stretch
                         nameSpan.textContent = shortName;
                         nameSpan.style.color = emp.color;
                         nameSpan.style.fontSize = '0.55rem';

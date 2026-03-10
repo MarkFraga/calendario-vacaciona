@@ -288,34 +288,68 @@ document.getElementById('toggle-names-btn').onclick = () => {
     updateUI();
 };
 
+// CATEGORY MODAL LOGIC
+const categoryModal = document.getElementById('category-modal');
+const categoryModalTitle = document.getElementById('category-modal-title');
+const categoryModalList = document.getElementById('category-modal-list');
+const categoryModalNewInput = document.getElementById('category-modal-new-input');
+let currentCategoryTarget = null; // 'dept' or 'group'
+
+function openCategoryModal(type) {
+    currentCategoryTarget = type;
+    categoryModalTitle.textContent = type === 'dept' ? 'Seleccionar Departamento' : 'Seleccionar Grupo';
+    categoryModalNewInput.value = '';
+
+    // Grab unique values
+    const items = new Set();
+    Storage.data.employees.forEach(emp => {
+        if (type === 'dept' && emp.dept) items.add(emp.dept);
+        if (type === 'group' && emp.group) items.add(emp.group);
+    });
+
+    categoryModalList.innerHTML = '';
+    if (items.size === 0) {
+        categoryModalList.innerHTML = '<p style="color:#999; font-size:0.9rem;">No hay opciones guardadas todavía.</p>';
+    } else {
+        items.forEach(item => {
+            const btn = document.createElement('button');
+            btn.textContent = item;
+            btn.style.padding = '8px 12px';
+            btn.style.border = '1px solid var(--primary-color)';
+            btn.style.background = 'white';
+            btn.style.color = 'var(--primary-color)';
+            btn.style.borderRadius = '4px';
+            btn.style.cursor = 'pointer';
+            btn.onclick = () => selectCategory(item);
+            categoryModalList.appendChild(btn);
+        });
+    }
+
+    categoryModal.style.display = 'flex';
+}
+
+function selectCategory(value) {
+    if (currentCategoryTarget === 'dept') document.getElementById('emp-dept').value = value;
+    if (currentCategoryTarget === 'group') document.getElementById('emp-group').value = value;
+    categoryModal.style.display = 'none';
+}
+
+document.getElementById('category-modal-add-btn').onclick = () => {
+    const val = categoryModalNewInput.value.trim();
+    if (val) selectCategory(val);
+};
+
+document.getElementById('category-modal-cancel').onclick = () => {
+    categoryModal.style.display = 'none';
+};
+
+document.getElementById('emp-dept').onclick = () => openCategoryModal('dept');
+document.getElementById('emp-group').onclick = () => openCategoryModal('group');
+
 document.getElementById('manage-emp-btn').onclick = () => {
-    populateDatalists();
     renderEmpManageList();
     empModal.style.display = 'flex';
 };
-
-function populateDatalists() {
-    const deptList = document.getElementById('dept-list');
-    const groupList = document.getElementById('group-list');
-    deptList.innerHTML = '';
-    groupList.innerHTML = '';
-    const depts = new Set();
-    const groups = new Set();
-    Storage.data.employees.forEach(emp => {
-        if (emp.dept) depts.add(emp.dept);
-        if (emp.group) groups.add(emp.group);
-    });
-    depts.forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d;
-        deptList.appendChild(opt);
-    });
-    groups.forEach(g => {
-        const opt = document.createElement('option');
-        opt.value = g;
-        groupList.appendChild(opt);
-    });
-}
 
 document.getElementById('emp-modal-close').onclick = () => {
     empModal.style.display = 'none';
@@ -641,6 +675,8 @@ document.getElementById('export-modal-accept').onclick = () => {
     else if (pendingExportType === 'employee-excel') processEmployeeExcelExport(format, showNames);
     else if (pendingExportType === 'global-pdf') processGlobalPdfExport(format, showNames);
     else if (pendingExportType === 'global-excel') processGlobalExcelExport(format, showNames);
+    else if (pendingExportType === 'sub-pdf') processSubPdfExport(format, showNames);
+    else if (pendingExportType === 'sub-excel') processSubExcelExport(format, showNames);
 };
 
 function openExportModal(type) {
@@ -652,6 +688,8 @@ document.getElementById('export-pdf-btn').onclick = () => openExportModal('emplo
 document.getElementById('export-excel-btn').onclick = () => openExportModal('employee-excel');
 document.getElementById('export-global-pdf-btn').onclick = () => openExportModal('global-pdf');
 document.getElementById('export-global-excel-btn').onclick = () => openExportModal('global-excel');
+document.getElementById('export-sub-pdf-btn').onclick = () => openExportModal('sub-pdf');
+document.getElementById('export-sub-excel-btn').onclick = () => openExportModal('sub-excel');
 
 // EXPORT IMPLEMENTATIONS
 async function processEmployeePdfExport(format, showNames) {
@@ -717,61 +755,151 @@ async function processGlobalExcelExport(format, showNames) {
     }
 }
 
+// SUBSTITUTION EXPORTS LOGIC
+function getSubstitutionsData() {
+    const selectedEmpId = document.getElementById('sub-emp-select').value;
+    let data = [];
+    if (!Storage.data.substitutions) return data;
+
+    // Loop through all dates
+    for (const date in Storage.data.substitutions) {
+        for (const uid in Storage.data.substitutions[date]) {
+            const subName = Storage.data.substitutions[date][uid].trim();
+            if (!subName) continue;
+            
+            const emp = Storage.data.employees.find(e => e.id === parseInt(uid));
+            if (!emp) continue;
+
+            // If filtering by employee
+            if (selectedEmpId !== 'all') {
+                const isSubstituted = (emp.id === parseInt(selectedEmpId));
+                const isSubstituting = subName.toLowerCase().includes(Storage.data.employees.find(e => e.id === parseInt(selectedEmpId)).name.toLowerCase()) || 
+                                       subName.toLowerCase().includes(Storage.data.employees.find(e => e.id === parseInt(selectedEmpId)).nickname.toLowerCase());
+                if (!isSubstituted && !isSubstituting) continue;
+            }
+
+            const [y, m, d] = date.split('-');
+            data.push({
+                FechaRaw: date,
+                Fecha: `${d}/${m}/${y}`,
+                Ausente: getEmpDisplayName(emp),
+                Sustituto: subName
+            });
+        }
+    }
+    data.sort((a, b) => a.FechaRaw.localeCompare(b.FechaRaw));
+    return data;
+}
+
+async function processSubPdfExport(format, showNames) {
+    if (format === 'list') {
+        const { jsPDF } = window.jspdf;
+        const data = getSubstitutionsData();
+        const doc = new jsPDF();
+        
+        const selectedEmpId = document.getElementById('sub-emp-select').value;
+        const title = selectedEmpId === 'all' ? `Listado Global de Sustituciones` : `Sustituciones de ${getEmpDisplayName(Storage.data.employees.find(e => e.id === parseInt(selectedEmpId)))}`;
+        
+        doc.text(title, 14, 15);
+        const tableData = data.map(row => [row.Fecha, row.Ausente, row.Sustituto]);
+        doc.autoTable({ startY: 25, head: [['Fecha', 'Personal Ausente', 'Personal Sustituto']], body: tableData });
+        const filename = selectedEmpId === 'all' ? 'Sustituciones_Globales' : `Sustituciones_${data[0] ? data[0].Ausente.replace(/\s+/g, '_') : 'Empleado'}`;
+        
+        doc.save(`${filename}.pdf`);
+        showCustomAlert("PDF de Sustituciones exportado con éxito.");
+    } else {
+        showCustomAlert("El formato de Calendario Anual visual para Sustituciones aún está en desarrollo. Exportado como listado automáticamente.");
+        processSubPdfExport('list', showNames);
+    }
+}
+
+async function processSubExcelExport(format, showNames) {
+    const XLSX = window.XLSX;
+    if (format === 'list') {
+        const data = getSubstitutionsData();
+        const exportData = data.map(({ FechaRaw, ...rest }) => rest);
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Sustituciones");
+        
+        const selectedEmpId = document.getElementById('sub-emp-select').value;
+        const filename = selectedEmpId === 'all' ? 'Sustituciones_Globales' : `Sustituciones_${data[0] ? data[0].Ausente.replace(/\s+/g, '_') : 'Empleado'}`;
+
+        XLSX.writeFile(wb, `${filename}.xlsx`);
+        showCustomAlert("Excel de Sustituciones exportado con éxito.");
+    } else {
+        showCustomAlert("El formato de Calendario Anual visual para Sustituciones aún está en desarrollo. Exportado como listado automáticamente.");
+        processSubExcelExport('list', showNames);
+    }
+}
+
 async function generateCalendarPDF(filename, focusEmpId, showNames) {
     const year = parseInt(document.getElementById('year-select').value);
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfPageHeight = pdf.internal.pageSize.getHeight();
+    const title = focusEmpId ? `Calendario de Vacaciones: ${getEmpDisplayName(Storage.data.employees.find(e => e.id === focusEmpId))} - ${year}` : `Calendario Global de Vacaciones - ${year}`;
 
-    const tempDiv = document.createElement('div');
-    tempDiv.id = 'print-calendar-container';
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    tempDiv.style.top = '0';
-    tempDiv.style.width = '1000px';
-    tempDiv.style.display = 'flex';
-    tempDiv.style.flexWrap = 'wrap';
-    tempDiv.style.gap = '15px';
-    tempDiv.style.padding = '20px';
-    tempDiv.style.background = 'white';
-    tempDiv.style.height = 'auto'; // allow natural vertical scaling
-    document.body.appendChild(tempDiv);
+    showCustomAlert("Generando PDF (Puede tardar unos segundos)...");
 
-    renderYearlyCalendar('print-calendar-container', year, Storage.data, showNames, focusEmpId);
+    for (let i = 0; i < 6; i++) {
+        const startMonth = i * 2;
+        const endMonth = startMonth + 1;
+
+        const tempDiv = document.createElement('div');
+        tempDiv.id = `print-calendar-container-${i}`;
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.top = '0';
+        tempDiv.style.width = '1000px';
+        tempDiv.style.display = 'flex';
+        tempDiv.style.flexWrap = 'wrap';
+        tempDiv.style.gap = '15px';
+        tempDiv.style.padding = '20px';
+        tempDiv.style.background = 'white';
+        tempDiv.style.height = 'auto'; // allow natural vertical scaling
+        document.body.appendChild(tempDiv);
+
+        renderYearlyCalendar(tempDiv.id, year, Storage.data, showNames, focusEmpId, startMonth, endMonth);
+
+        try {
+            const canvas = await html2canvas(tempDiv, {
+                scale: 2,
+                windowWidth: tempDiv.scrollWidth,
+                windowHeight: tempDiv.scrollHeight
+            });
+            const imgData = canvas.toDataURL('image/png');
+
+            if (i > 0) pdf.addPage();
+
+            pdf.setFontSize(16);
+            pdf.text(`${title} (Parte ${i + 1}/6)`, 40, 40);
+
+            let finalWidth = pdfWidth - 40;
+            let finalHeight = (canvas.height * finalWidth) / canvas.width;
+
+            if (finalHeight > pdfPageHeight - 80) {
+                finalHeight = pdfPageHeight - 80;
+                finalWidth = (canvas.width * finalHeight) / canvas.height;
+            }
+
+            let xOffset = (pdfWidth - finalWidth) / 2;
+            if (xOffset < 20) xOffset = 20;
+
+            pdf.addImage(imgData, 'PNG', xOffset, 60, finalWidth, finalHeight);
+        } catch (e) {
+            console.error("Error capturando mes", e);
+        } finally {
+            document.body.removeChild(tempDiv);
+        }
+    }
 
     try {
-        const canvas = await html2canvas(tempDiv, {
-            scale: 2,
-            windowWidth: tempDiv.scrollWidth,
-            windowHeight: tempDiv.scrollHeight
-        });
-        const imgData = canvas.toDataURL('image/png');
-        const { jsPDF } = window.jspdf;
-
-        let orientation = 'p';
-        const pdf = new jsPDF(orientation, 'pt', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfPageHeight = pdf.internal.pageSize.getHeight();
-
-        let finalWidth = pdfWidth - 40;
-        let finalHeight = (canvas.height * finalWidth) / canvas.width;
-
-        if (finalHeight > pdfPageHeight - 80) {
-            finalHeight = pdfPageHeight - 80;
-            finalWidth = (canvas.width * finalHeight) / canvas.height;
-        }
-
-        pdf.setFontSize(16);
-        let title = focusEmpId ? `Calendario de Vacaciones: ${getEmpDisplayName(Storage.data.employees.find(e => e.id === focusEmpId))} - ${year}` : `Calendario Global de Vacaciones - ${year}`;
-        pdf.text(title, 40, 40);
-
-        let xOffset = (pdfWidth - finalWidth) / 2;
-        if (xOffset < 20) xOffset = 20;
-
-        pdf.addImage(imgData, 'PNG', xOffset, 60, finalWidth, finalHeight);
         pdf.save(`${filename}.pdf`);
         showCustomAlert("Calendario PDF exportado exitosamente.");
     } catch (e) {
         showCustomAlert("Error al generar PDF del calendario.");
-    } finally {
-        document.body.removeChild(tempDiv);
     }
 }
 

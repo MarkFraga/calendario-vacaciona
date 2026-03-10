@@ -178,6 +178,26 @@
               <label style="display:block; margin-bottom: 0.5rem; font-weight: bold;">Mes:</label>
               <select id="sub-month-select" style="width: 100%; padding: 8px;"></select>
             </div>
+            <div style="margin-bottom: 1rem;">
+              <label style="display:block; margin-bottom: 0.5rem; font-weight: bold;">Filtro por Empleado
+                (Opcional):</label>
+              <select id="sub-emp-select" style="width: 100%; padding: 8px;">
+                <option value="all">-- Todos --</option>
+              </select>
+            </div>
+            <div class="selection-panel"
+              style="background: var(--day-bg); padding: 15px; border-radius: 8px; margin-top: 2rem;">
+              <h3 style="margin-bottom: 1rem; color: var(--secondary-color); font-size: 1rem;">Exportar Sustituciones
+              </h3>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button id="export-sub-pdf-btn"
+                  style="padding: 10px; border-radius: 4px; border: none; cursor: pointer; background: #e74c3c; color: white; font-family: 'Outfit';">📄
+                  Exportar a PDF</button>
+                <button id="export-sub-excel-btn"
+                  style="padding: 10px; border-radius: 4px; border: none; cursor: pointer; background: #27ae60; color: white; font-family: 'Outfit';">📊
+                  Exportar a Excel</button>
+              </div>
+            </div>
           </div>
           <div class="sub-details" style="flex: 1; padding: 2rem; overflow-y: auto;">
             <h2 style="margin-bottom: 1.5rem; color: var(--primary-color);">Panel de Sustituciones</h2>
@@ -260,12 +280,10 @@
         <input type="hidden" id="emp-id">
         <input type="text" id="emp-name" placeholder="Nombre completo" style="padding: 8px;">
         <input type="text" id="emp-nickname" placeholder="Apodo o alias (Opcional)" style="padding: 8px;">
-        <input type="text" id="emp-dept" list="dept-list" placeholder="Departamento (ej. Oficina, Almacén)"
-          style="padding: 8px;">
-        <datalist id="dept-list"></datalist>
-        <input type="text" id="emp-group" list="group-list" placeholder="Grupo (ej. Fijos, Ruta 1)"
-          style="padding: 8px;">
-        <datalist id="group-list"></datalist>
+        <input type="text" id="emp-dept" placeholder="Haz clic para seleccionar Departamento" readonly
+          style="padding: 8px; cursor: pointer; background: #f9f9f9;">
+        <input type="text" id="emp-group" placeholder="Haz clic para seleccionar Grupo" readonly
+          style="padding: 8px; cursor: pointer; background: #f9f9f9;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <label>Color representativo:</label>
           <input type="color" id="emp-color" value="#000000">
@@ -280,6 +298,35 @@
         <button id="emp-new-btn" class="btn btn-light" style="margin-top: 8px;">Formulario en Blanco Nuevo</button>
       </div>
       <div id="emp-list-manage" style="display: flex; flex-direction: column; gap: 5px;"></div>
+    </div>
+  </div>
+
+  <div id="category-modal" class="modal"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 2000;">
+    <div class="modal-content"
+      style="background: white; padding: 2rem; border-radius: 8px; width: 400px; max-width: 90%; font-family: 'Outfit', sans-serif;">
+      <h2 id="category-modal-title" style="margin-top: 0; color: var(--primary-color);">Seleccionar Categoría</h2>
+      <p style="color: #666; font-size: 0.9rem; margin-bottom: 1rem;">Elige una opción existente o crea una nueva.</p>
+
+      <div id="category-modal-list"
+        style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.5rem; max-height: 200px; overflow-y: auto;">
+        <!-- existing categories injected here -->
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.5rem;">
+        <label style="font-weight: bold; font-size: 0.9rem;">O crear una nueva:</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="category-modal-new-input" placeholder="Nombre..."
+            style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <button id="category-modal-add-btn"
+            style="padding: 8px 12px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer;">Añadir</button>
+        </div>
+      </div>
+
+      <div class="confirm-actions" style="display: flex; justify-content: flex-end;">
+        <button id="category-modal-cancel" class="btn btn-light"
+          style="padding: 8px 16px; border: none; background: #eee; border-radius: 4px; cursor: pointer;">Cancelar</button>
+      </div>
     </div>
   </div>
 
