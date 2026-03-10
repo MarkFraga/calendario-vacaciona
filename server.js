@@ -70,6 +70,14 @@ const fixedVacationSchema = new mongoose.Schema({
 });
 const FixedVacation = mongoose.model('FixedVacation', fixedVacationSchema);
 
+const substitutionSchema = new mongoose.Schema({
+    date: { type: String, required: true },
+    user_id: { type: Number, required: true },
+    substitute: { type: String, required: true }
+});
+substitutionSchema.index({ date: 1, user_id: 1 }, { unique: true });
+const Substitution = mongoose.model('Substitution', substitutionSchema);
+
 
 // --- MIDDLEWARE ---
 const authenticateToken = (req, res, next) => {
@@ -122,8 +130,9 @@ app.get('/api/data', authenticateToken, async (req, res) => {
         const users = await User.find({});
         const vacations = await Vacation.find({});
         const fixed = await FixedVacation.find({});
+        const subs = await Substitution.find({});
 
-        const result = { employees: [], userVacations: {}, extraDays: {}, fixedVacations: [] };
+        const result = { employees: [], userVacations: {}, extraDays: {}, fixedVacations: [], substitutions: {} };
 
         result.employees = users.map(u => ({
             id: u.id,
@@ -144,6 +153,12 @@ app.get('/api/data', authenticateToken, async (req, res) => {
         });
 
         result.fixedVacations = fixed.map(f => f.date);
+
+        subs.forEach(s => {
+            if (!result.substitutions[s.date]) result.substitutions[s.date] = {};
+            result.substitutions[s.date][s.user_id] = s.substitute;
+        });
+
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -193,6 +208,16 @@ app.post('/api/admin/extra_days', authenticateToken, isAdmin, async (req, res) =
     const { userId, extraDays } = req.body;
     try {
         await User.updateOne({ id: userId }, { extraDays });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/substitution', authenticateToken, isAdmin, async (req, res) => {
+    const { date, userId, substitute } = req.body;
+    try {
+        await Substitution.updateOne({ date, user_id: userId }, { substitute }, { upsert: true });
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });

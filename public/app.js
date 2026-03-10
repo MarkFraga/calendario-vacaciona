@@ -10,6 +10,7 @@ function getEmpDisplayName(emp) {
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 let currentUserId = 1;
+let showNamesOnCalendar = false;
 
 if (currentYear < 2026) currentYear = 2026;
 
@@ -99,6 +100,7 @@ function selectEmployee(id) {
 
 async function init() {
     await Storage.load();
+    if (!Storage.data.substitutions) Storage.data.substitutions = {};
     // Validate currentUserId
     if (!Storage.data.employees.find(e => e.id === currentUserId) && Storage.data.employees.length > 0) {
         currentUserId = Storage.data.employees[0].id;
@@ -108,7 +110,7 @@ async function init() {
 }
 
 function updateUI() {
-    renderCalendar(currentYear, currentMonth, currentUserId, Storage.data);
+    renderCalendar(currentYear, currentMonth, currentUserId, Storage.data, showNamesOnCalendar);
     updateStats();
 }
 
@@ -280,10 +282,40 @@ document.getElementById('custom-alert-btn').onclick = () => { document.getElemen
 // EMPLOYEE MANAGEMENT
 let editingEmpId = null;
 
+document.getElementById('toggle-names-btn').onclick = () => {
+    showNamesOnCalendar = !showNamesOnCalendar;
+    document.getElementById('toggle-names-btn').textContent = showNamesOnCalendar ? "Mostrar Colores en Calendario" : "Mostrar Nombres en Calendario";
+    updateUI();
+};
+
 document.getElementById('manage-emp-btn').onclick = () => {
+    populateDatalists();
     renderEmpManageList();
     empModal.style.display = 'flex';
 };
+
+function populateDatalists() {
+    const deptList = document.getElementById('dept-list');
+    const groupList = document.getElementById('group-list');
+    deptList.innerHTML = '';
+    groupList.innerHTML = '';
+    const depts = new Set();
+    const groups = new Set();
+    Storage.data.employees.forEach(emp => {
+        if (emp.dept) depts.add(emp.dept);
+        if (emp.group) groups.add(emp.group);
+    });
+    depts.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        deptList.appendChild(opt);
+    });
+    groups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g;
+        groupList.appendChild(opt);
+    });
+}
 
 document.getElementById('emp-modal-close').onclick = () => {
     empModal.style.display = 'none';
@@ -414,18 +446,29 @@ let currentEmpTabId = null;
 // TABS LOGIC
 document.getElementById('tab-calendar').onclick = () => switchTab('calendar');
 document.getElementById('tab-employees').onclick = () => switchTab('employees');
+document.getElementById('tab-substitutions').onclick = () => switchTab('substitutions');
 
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.view').forEach(view => view.style.display = 'none');
+
+    // Si es empleado, bloqueamos ir a otra pestaña distinta de employees
+    if (userRole !== 'admin' && tab !== 'employees') {
+        tab = 'employees';
+    }
+
     if (tab === 'calendar') {
         document.getElementById('tab-calendar').classList.add('active');
         document.getElementById('view-calendar').style.display = 'flex';
         updateUI();
-    } else {
+    } else if (tab === 'employees') {
         document.getElementById('tab-employees').classList.add('active');
         document.getElementById('view-employees').style.display = 'flex';
         renderEmpTabList();
+    } else {
+        document.getElementById('tab-substitutions').classList.add('active');
+        document.getElementById('view-substitutions').style.display = 'flex';
+        renderSubstitutionsTab();
     }
 }
 
@@ -521,6 +564,27 @@ function getUserVacationsData(emp) {
     });
 }
 
+function getGlobalVacationsData() {
+    let allVacs = [];
+    for (const uid in Storage.data.userVacations) {
+        const emp = Storage.data.employees.find(e => e.id === parseInt(uid));
+        if (!emp) continue;
+        Storage.data.userVacations[uid].forEach(v => {
+            allVacs.push({ emp: getEmpDisplayName(emp), dept: emp.dept, date: v.date, type: v.type });
+        });
+    }
+    allVacs.sort((a, b) => a.date.localeCompare(b.date));
+    return allVacs.map(v => {
+        const [y, m, d] = v.date.split('-');
+        return {
+            Empleado: v.emp,
+            Departamento: v.dept,
+            Fecha: `${d}/${m}/${y}`,
+            Tipo: v.type === 'vacation' ? 'Vacaciones' : 'Asuntos Propios'
+        };
+    });
+}
+
 function getShareText(emp, data) {
     let text = `*Vacaciones Seleccionadas: ${getEmpDisplayName(emp)}*\n\n`;
     if (data.length === 0) return text + "Sin días seleccionados.";
@@ -584,4 +648,158 @@ document.getElementById('share-email-btn').onclick = () => {
     window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
 };
 
+// GLOBAL EXPORT REFS
+document.getElementById('export-global-pdf-btn').onclick = async () => {
+    const { jsPDF } = window.jspdf;
+    const data = getGlobalVacationsData();
+
+    const doc = new jsPDF();
+    doc.text(`Vacaciones Globales de la Empresa`, 14, 15);
+
+    const tableData = data.map(row => [row.Empleado, row.Departamento, row.Fecha, row.Tipo]);
+    doc.autoTable({
+        startY: 25,
+        head: [['Empleado', 'Departamento', 'Fecha', 'Tipo']],
+        body: tableData,
+    });
+
+    doc.save(`Vacaciones_Globales.pdf`);
+    showCustomAlert("PDF Global exportado exitosamente.");
+};
+
+document.getElementById('export-global-excel-btn').onclick = async () => {
+    const data = getGlobalVacationsData();
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Vacaciones Globales");
+
+    XLSX.writeFile(wb, `Vacaciones_Globales.xlsx`);
+    showCustomAlert("Excel Global exportado exitosamente.");
+};
+
+document.getElementById('share-global-wa-btn').onclick = () => {
+    const data = getGlobalVacationsData();
+    let text = `*Vacaciones Globales*\n\n`;
+    if (data.length === 0) text += "Sin días seleccionados.";
+    data.forEach(row => {
+        text += `- ${row.Empleado}: ${row.Fecha} (${row.Tipo})\n`;
+    });
+    const encoded = encodeURIComponent(text);
+    window.open(`https://wa.me/?text=${encoded}`, '_blank');
+};
+
+// SUBSTITUTIONS LOGIC
+const subMonthSelect = document.getElementById('sub-month-select');
+const monthNamesList = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+let currentSubMonth = new Date().getMonth();
+
+function renderSubstitutionsTab() {
+    subMonthSelect.innerHTML = '';
+    monthNamesList.forEach((m, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `${m} ${currentYear}`;
+        if (i === currentSubMonth) opt.selected = true;
+        subMonthSelect.appendChild(opt);
+    });
+
+    subMonthSelect.onchange = (e) => {
+        currentSubMonth = parseInt(e.target.value);
+        renderSubList();
+    };
+
+    renderSubList();
+}
+
+function renderSubList() {
+    const subList = document.getElementById('sub-list');
+    subList.innerHTML = '';
+
+    const y = currentYear;
+    const m = currentSubMonth;
+    const prefix = `${y}-${String(m + 1).padStart(2, '0')}`;
+
+    // Find who is on vacation this month
+    let vacsThisMonth = [];
+    for (const uid in Storage.data.userVacations) {
+        const emp = Storage.data.employees.find(e => e.id === parseInt(uid));
+        if (!emp) continue;
+        Storage.data.userVacations[uid].forEach(v => {
+            if (v.date.startsWith(prefix)) {
+                vacsThisMonth.push({ emp, date: v.date, type: v.type });
+            }
+        });
+    }
+
+    vacsThisMonth.sort((a, b) => a.date.localeCompare(b.date));
+
+    if (vacsThisMonth.length === 0) {
+        subList.innerHTML = '<p>No hay vacaciones registradas en este mes.</p>';
+        return;
+    }
+
+    vacsThisMonth.forEach(vac => {
+        const [yy, mm, dd] = vac.date.split('-');
+
+        const div = document.createElement('div');
+        div.style.padding = '1rem';
+        div.style.background = '#f9f9f9';
+        div.style.border = '1px solid #ddd';
+        div.style.borderRadius = '4px';
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        div.style.justifyContent = 'space-between';
+
+        const info = document.createElement('div');
+        info.innerHTML = `<strong>${getEmpDisplayName(vac.emp)}</strong> - ${dd}/${mm}/${yy} (${vac.type === 'vacation' ? 'Vacaciones' : 'Asuntos Propios'})`;
+
+        const subDiv = document.createElement('div');
+        subDiv.style.display = 'flex';
+        subDiv.style.gap = '10px';
+        subDiv.style.alignItems = 'center';
+
+        const subInput = document.createElement('input');
+        subInput.type = 'text';
+        subInput.placeholder = 'Nombre del sustituto';
+        subInput.style.padding = '6px';
+
+        // Load existing substitute
+        if (Storage.data.substitutions && Storage.data.substitutions[vac.date] && Storage.data.substitutions[vac.date][vac.emp.id]) {
+            subInput.value = Storage.data.substitutions[vac.date][vac.emp.id];
+        }
+
+        const saveSubBtn = document.createElement('button');
+        saveSubBtn.textContent = 'Guardar Sustituto';
+        saveSubBtn.style.padding = '6px 10px';
+        saveSubBtn.style.cursor = 'pointer';
+        saveSubBtn.style.background = 'var(--primary-color)';
+        saveSubBtn.style.color = 'white';
+        saveSubBtn.style.border = 'none';
+        saveSubBtn.style.borderRadius = '4px';
+
+        saveSubBtn.onclick = async () => {
+            saveSubBtn.disabled = true;
+            const success = await Storage.updateSubstitution(vac.date, vac.emp.id, subInput.value);
+            saveSubBtn.disabled = false;
+            if (success) {
+                if (!Storage.data.substitutions) Storage.data.substitutions = {};
+                if (!Storage.data.substitutions[vac.date]) Storage.data.substitutions[vac.date] = {};
+                Storage.data.substitutions[vac.date][vac.emp.id] = subInput.value;
+                showCustomAlert(`Sustituto guardado para el día ${dd}/${mm}/${yy}`);
+            } else {
+                showCustomAlert("Error al guardar sustituto en el servidor.");
+            }
+        };
+
+        subDiv.appendChild(subInput);
+        subDiv.appendChild(saveSubBtn);
+
+        div.appendChild(info);
+        div.appendChild(subDiv);
+        subList.appendChild(div);
+    });
+}
+
+// Initializing application
 init();

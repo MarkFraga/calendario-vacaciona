@@ -139,6 +139,19 @@ const Storage = {
             console.error(e);
             return false;
         }
+    },
+
+    async updateSubstitution(date, userId, substitute) {
+        try {
+            const res = await fetch(`${API_URL}/admin/substitution`, {
+                method: 'POST',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify({ date, userId, substitute })
+            });
+            return res.ok;
+        } catch (e) {
+            return false;
+        }
     }
 };
 

@@ -12,7 +12,7 @@ function getFirstDayOfMonth(year, month) {
     return day === 0 ? 6 : day - 1;
 }
 
-function renderCalendar(year, month, currentUserId, store) {
+function renderCalendar(year, month, currentUserId, store, showNames = false) {
     const container = document.getElementById('calendar-grid');
     container.innerHTML = '';
 
@@ -66,16 +66,46 @@ function renderCalendar(year, month, currentUserId, store) {
         dayVacations.forEach(v => {
             const emp = store.employees.find(e => e.id === v.uid);
             if (emp) {
+                const barContainer = document.createElement('div');
+                barContainer.style.display = 'flex';
+                barContainer.style.alignItems = 'center';
+                barContainer.style.marginBottom = '2px';
+
                 const bar = document.createElement('div');
                 bar.className = 'vacation-bar';
                 if (v.type === 'personal') {
-                    bar.style.height = '8px';
+                    bar.style.height = showNames ? 'auto' : '8px';
                     bar.style.backgroundImage = `repeating-linear-gradient(45deg, white, white 4px, ${emp.color} 4px, ${emp.color} 8px)`;
                     bar.style.border = `1px solid ${emp.color}`;
                 } else {
+                    bar.style.height = showNames ? 'auto' : '6px';
                     bar.style.backgroundColor = emp.color;
                 }
-                barsContainer.appendChild(bar);
+
+                if (showNames) {
+                    bar.style.backgroundColor = 'transparent';
+                    bar.style.backgroundImage = 'none';
+                    bar.style.border = 'none';
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = getEmpDisplayName(emp);
+                    nameSpan.style.color = emp.color;
+                    nameSpan.style.fontSize = '0.75rem';
+                    nameSpan.style.fontWeight = 'bold';
+                    nameSpan.style.whiteSpace = 'nowrap';
+                    nameSpan.style.overflow = 'hidden';
+                    nameSpan.style.textOverflow = 'ellipsis';
+
+                    if (v.type === 'personal') {
+                        nameSpan.style.textDecoration = 'underline';
+                    }
+
+                    barContainer.appendChild(nameSpan);
+                } else {
+                    barContainer.appendChild(bar);
+                }
+
+                barsContainer.appendChild(barContainer);
             }
         });
 
