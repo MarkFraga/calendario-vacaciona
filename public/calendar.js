@@ -33,6 +33,9 @@ function renderCalendar(year, month, currentUserId, store, showNames = false) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const cell = document.createElement('div');
         cell.className = 'day-cell';
+        cell.onclick = () => {
+            if (window.onDayClick) window.onDayClick(dateStr);
+        };
 
         // Check weekend
         const currentDayOfWeek = new Date(year, month, day).getDay();
@@ -168,6 +171,12 @@ function renderYearlyCalendar(containerId, year, store, showNames = false, focus
             cell.style.display = 'flex';
             cell.style.flexDirection = 'column';
             cell.style.overflow = 'hidden';
+            cell.style.cursor = 'pointer';
+            cell.onclick = () => {
+                if (window.onDayClick && localStorage.getItem('role') === 'admin') {
+                    window.onDayClick(dateStr, focusEmpId);
+                }
+            };
 
             const dayNum = document.createElement('span');
             dayNum.textContent = day;

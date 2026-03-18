@@ -45,6 +45,7 @@ const empModal = document.getElementById('emp-modal');
 
 let pendingDateStr = null;
 let pendingType = null;
+let pendingEmpId = null;
 
 function renderSidebar() {
     employeeList.innerHTML = '';
@@ -149,7 +150,8 @@ function updateStats() {
     }
 }
 
-async function onDayClick(dateStr) {
+window.onDayClick = async function(dateStr, overrideEmpId = null) {
+    const targetEmpId = overrideEmpId || currentUserId;
     const isAdminSelection = document.getElementById('fixed-vacation-cb').checked;
 
     if (isAdminSelection) {
@@ -168,7 +170,7 @@ async function onDayClick(dateStr) {
             updateUI();
         }
     } else {
-        if (userRole !== 'admin' && currentUserId !== loggedUserId) {
+        if (userRole !== 'admin' && targetEmpId !== loggedUserId) {
             showCustomAlert("No puedes modificar los días de otra persona.");
             return;
         }
@@ -180,34 +182,35 @@ async function onDayClick(dateStr) {
 
         const type = document.querySelector('input[name="selection-type"]:checked').value;
 
-        if (!Storage.data.userVacations[currentUserId]) {
-            Storage.data.userVacations[currentUserId] = [];
+        if (!Storage.data.userVacations[targetEmpId]) {
+            Storage.data.userVacations[targetEmpId] = [];
         }
 
-        const userVacList = Storage.data.userVacations[currentUserId];
+        const userVacList = Storage.data.userVacations[targetEmpId];
         const existingIdx = userVacList.findIndex(v => v.date === dateStr);
 
         if (existingIdx >= 0) {
-            const success = await Storage.toggleVacation(currentUserId, dateStr, type, false);
+            const success = await Storage.toggleVacation(targetEmpId, dateStr, type, false);
             if (success) {
                 userVacList.splice(existingIdx, 1);
                 updateUI();
             }
         } else {
             const base = DEFAULT_FLEXIBLE_DAYS;
-            const extra = Storage.data.extraDays[currentUserId] || 0;
+            const extra = Storage.data.extraDays[targetEmpId] || 0;
             const totalAllowed = base + extra;
             const currentlyUsed = userVacList.length;
 
-            if (currentlyUsed >= totalAllowed && currentUserId !== 19 && currentUserId !== 20) {
+            if (currentlyUsed >= totalAllowed && targetEmpId !== 19 && targetEmpId !== 20) {
                 pendingDateStr = dateStr;
                 pendingType = type;
+                pendingEmpId = targetEmpId;
                 confirmModalMsg.textContent = `El empleado ya ha agotado sus ${totalAllowed} días. ¿Deseas concederle 1 día extra y marcar esta fecha?`;
                 confirmModal.style.display = 'flex';
                 return;
             }
 
-            const checkResult = canBookVacation(currentUserId, dateStr, Storage.data);
+            const checkResult = canBookVacation(targetEmpId, dateStr, Storage.data);
             if (!checkResult.allowed) {
                 if (userRole === 'admin') {
                     if (!window.confirm("Aviso Jefe: " + checkResult.reason + "\n\n¿Quieres sobreescribir esta regla y asignar el día de todos modos?")) {
@@ -225,7 +228,7 @@ async function onDayClick(dateStr) {
                 }
             }
 
-            const success = await Storage.toggleVacation(currentUserId, dateStr, type, true);
+            const success = await Storage.toggleVacation(targetEmpId, dateStr, type, true);
             if (success) {
                 userVacList.push({ date: dateStr, type: type });
                 updateUI();
@@ -255,24 +258,27 @@ document.getElementById('grant-days-btn').onclick = async () => {
     }
 };
 
-document.getElementById('confirm-cancel').onclick = () => { confirmModal.style.display = 'none'; pendingDateStr = null; pendingType = null; };
+document.getElementById('confirm-cancel').onclick = () => { confirmModal.style.display = 'none'; pendingDateStr = null; pendingType = null; pendingEmpId = null; };
 document.getElementById('confirm-accept').onclick = async () => {
-    if (!pendingDateStr) return;
-    const checkResult = canBookVacation(currentUserId, pendingDateStr, Storage.data);
+    if (!pendingDateStr || !pendingEmpId) return;
+    const checkResult = canBookVacation(pendingEmpId, pendingDateStr, Storage.data);
     if (!checkResult.allowed) {
         if (userRole === 'admin') {
             if (!window.confirm("Aviso Jefe: " + checkResult.reason + "\n\n¿Quieres sobreescribir esta regla y asignar el día de todos modos?")) {
-                confirmModal.style.display = 'none'; pendingDateStr = null; pendingType = null; return;
+                confirmModal.style.display = 'none'; pendingDateStr = null; pendingType = null; pendingEmpId = null; return;
             }
         } else {
-            confirmModal.style.display = 'none'; showCustomAlert(checkResult.reason); pendingDateStr = null; pendingType = null; return;
+            confirmModal.style.display = 'none'; showCustomAlert(checkResult.reason); pendingDateStr = null; pendingType = null; pendingEmpId = null; return;
         }
     }
-    if (!Storage.data.extraDays[currentUserId]) Storage.data.extraDays[currentUserId] = 0;
-    Storage.data.extraDays[currentUserId] += 1;
-    document.getElementById('extra-days-input').value = Storage.data.extraDays[currentUserId];
-    Storage.data.userVacations[currentUserId].push({ date: pendingDateStr, type: pendingType });
-    confirmModal.style.display = 'none'; pendingDateStr = null; pendingType = null;
+    if (!Storage.data.extraDays[pendingEmpId]) Storage.data.extraDays[pendingEmpId] = 0;
+    Storage.data.extraDays[pendingEmpId] += 1;
+    // Update input if the current sidebar happens to be looking at that user
+    if (currentUserId === pendingEmpId && document.getElementById('extra-days-input')) {
+        document.getElementById('extra-days-input').value = Storage.data.extraDays[pendingEmpId];
+    }
+    Storage.data.userVacations[pendingEmpId].push({ date: pendingDateStr, type: pendingType });
+    confirmModal.style.display = 'none'; pendingDateStr = null; pendingType = null; pendingEmpId = null;
     await Storage.save(); updateUI();
 };
 
@@ -858,16 +864,16 @@ async function generateCalendarPDF(filename, focusEmpId, showNames) {
 
     showCustomAlert("Generando PDF (Puede tardar unos segundos)...");
 
-    for (let i = 0; i < 6; i++) {
-        const startMonth = i * 2;
-        const endMonth = startMonth + 1;
+    for (let i = 0; i < 12; i++) {
+        const startMonth = i;
+        const endMonth = i;
 
         const tempDiv = document.createElement('div');
         tempDiv.id = `print-calendar-container-${i}`;
         tempDiv.style.position = 'absolute';
         tempDiv.style.left = '-9999px';
         tempDiv.style.top = '0';
-        tempDiv.style.width = '1400px'; // Wider container allows names more breathing room
+        tempDiv.style.width = 'fit-content'; // Allows month cell to define native width
         tempDiv.style.display = 'flex';
         tempDiv.style.flexWrap = 'wrap';
         tempDiv.style.gap = '15px';
@@ -880,7 +886,7 @@ async function generateCalendarPDF(filename, focusEmpId, showNames) {
 
         try {
             const canvas = await html2canvas(tempDiv, {
-                scale: 2,
+                scale: 4,
                 windowWidth: tempDiv.scrollWidth,
                 windowHeight: tempDiv.scrollHeight
             });
@@ -889,7 +895,7 @@ async function generateCalendarPDF(filename, focusEmpId, showNames) {
             if (i > 0) pdf.addPage();
 
             pdf.setFontSize(16);
-            pdf.text(`${title} (Parte ${i + 1}/6)`, 40, 40);
+            pdf.text(`${title} (Parte ${i + 1}/12)`, 40, 40);
 
             let finalWidth = pdfWidth - 40;
             let finalHeight = (canvas.height * finalWidth) / canvas.width;
