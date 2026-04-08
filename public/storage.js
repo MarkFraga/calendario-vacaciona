@@ -12,8 +12,9 @@ const Storage = {
     getAuthHeaders() {
         const token = localStorage.getItem('token');
         if (!token) {
-            window.location.href = '/login.html';
-            return {};
+            // No redirect here - index.html's inline script handles it.
+            // Just return empty headers so the fetch gets a 401 handled by load().
+            return { 'Content-Type': 'application/json' };
         }
         return {
             'Content-Type': 'application/json',

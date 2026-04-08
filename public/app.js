@@ -223,9 +223,14 @@ window.onDayClick = async function(dateStr, overrideEmpId = null) {
             }
 
             if (type === 'personal') {
-                if (!window.confirm("Aviso: Vas a coger un día de 'Asuntos Propios'. ¿Estás seguro de continuar?")) {
-                    return;
-                }
+                // Use custom modal instead of window.confirm (blocked by some browsers)
+                const personalModal = document.getElementById('personal-confirm-modal');
+                personalModal.style.display = 'flex';
+                const accepted = await new Promise(resolve => {
+                    document.getElementById('personal-confirm-accept').onclick = () => { personalModal.style.display = 'none'; resolve(true); };
+                    document.getElementById('personal-confirm-cancel').onclick = () => { personalModal.style.display = 'none'; resolve(false); };
+                });
+                if (!accepted) return;
             }
 
             const success = await Storage.toggleVacation(targetEmpId, dateStr, type, true);
@@ -277,9 +282,21 @@ document.getElementById('confirm-accept').onclick = async () => {
     if (currentUserId === pendingEmpId && document.getElementById('extra-days-input')) {
         document.getElementById('extra-days-input').value = Storage.data.extraDays[pendingEmpId];
     }
-    Storage.data.userVacations[pendingEmpId].push({ date: pendingDateStr, type: pendingType });
+    // Save extra days and vacation to server via proper API endpoints
+    const extraOk = await Storage.updateExtraDays(pendingEmpId, Storage.data.extraDays[pendingEmpId]);
+    const vacOk = await Storage.toggleVacation(pendingEmpId, pendingDateStr, pendingType, true);
+    if (extraOk && vacOk) {
+        Storage.data.userVacations[pendingEmpId].push({ date: pendingDateStr, type: pendingType });
+    } else {
+        // Rollback local extra days increment on failure
+        Storage.data.extraDays[pendingEmpId] -= 1;
+        if (currentUserId === pendingEmpId && document.getElementById('extra-days-input')) {
+            document.getElementById('extra-days-input').value = Storage.data.extraDays[pendingEmpId];
+        }
+        showCustomAlert("Error al guardar en el servidor. Inténtalo de nuevo.");
+    }
     confirmModal.style.display = 'none'; pendingDateStr = null; pendingType = null; pendingEmpId = null;
-    await Storage.save(); updateUI();
+    updateUI();
 };
 
 function showCustomAlert(msg) { document.getElementById('custom-alert-msg').textContent = msg; document.getElementById('custom-alert').style.display = 'flex'; }

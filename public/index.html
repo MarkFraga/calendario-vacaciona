@@ -7,6 +7,12 @@
   <title>Calendario Vacacional - Vinte Catro</title>
   <link rel="stylesheet" href="styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script>
+    if (!localStorage.getItem('token')) {
+      window.location.replace('/login.html');
+      document.documentElement.style.display = 'none';
+    }
+  </script>
 
   <!-- Export Libraries for Web -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -228,6 +234,17 @@
       <div class="confirm-actions">
         <button id="confirm-cancel">Cancelar</button>
         <button id="confirm-accept">Sí, añadir día extra</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="personal-confirm-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:white; padding:2rem; border-radius:8px; width:400px; max-width:90%; font-family:'Outfit',sans-serif; text-align:center;">
+      <h3 style="margin-bottom:1rem; color:#E8836B;">Confirmar Asuntos Propios</h3>
+      <p style="margin-bottom:1.5rem; color:#555;">Vas a marcar un día como <strong>Asuntos Propios</strong>. ¿Estás seguro?</p>
+      <div style="display:flex; gap:10px; justify-content:center;">
+        <button id="personal-confirm-cancel" style="padding:10px 20px; border:1px solid #ccc; background:white; border-radius:4px; cursor:pointer; font-family:'Outfit';">Cancelar</button>
+        <button id="personal-confirm-accept" style="padding:10px 20px; border:none; background:#E8836B; color:white; border-radius:4px; cursor:pointer; font-family:'Outfit'; font-weight:bold;">Sí, confirmar</button>
       </div>
     </div>
   </div>
