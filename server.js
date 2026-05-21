@@ -127,7 +127,7 @@ app.post('/api/login', async (req, res) => {
 // Get all data (Users, Vacations, Fixed) to render the calendar
 app.get('/api/data', authenticateToken, async (req, res) => {
     try {
-        const users = await User.find({});
+        const users = await User.find({}).sort({ dept: 1, name: 1 });
         const vacations = await Vacation.find({});
         const fixed = await FixedVacation.find({});
         const subs = await Substitution.find({});

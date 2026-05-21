@@ -102,6 +102,12 @@ function selectEmployee(id) {
 async function init() {
     await Storage.load();
     if (!Storage.data.substitutions) Storage.data.substitutions = {};
+    // Sort employees by department so sidebar groups are contiguous
+    Storage.data.employees.sort((a, b) => {
+        if (a.dept < b.dept) return -1;
+        if (a.dept > b.dept) return 1;
+        return a.name.localeCompare(b.name);
+    });
     // Validate currentUserId
     if (!Storage.data.employees.find(e => e.id === currentUserId) && Storage.data.employees.length > 0) {
         currentUserId = Storage.data.employees[0].id;
